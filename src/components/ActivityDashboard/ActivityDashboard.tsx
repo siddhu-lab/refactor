@@ -6,6 +6,7 @@ import ViewsDropdown from './ViewsDropdown.tsx';
 import * as dc from 'dc';
 import './ActivityDashboard.css';
 import './dc.css';
+import SocialNetworkSection from './SocialNetworkSection/SocialNetworkSection.tsx';
 
 // Dummy data for social interactions
 const dummySocialInteractions = [
