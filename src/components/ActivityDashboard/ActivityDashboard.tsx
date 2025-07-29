@@ -7,6 +7,7 @@ import * as dc from 'dc';
 import './ActivityDashboard.css';
 import './dc.css';
 import SocialNetworkSection from './SocialNetworkSection/SocialNetworkSection.tsx';
+import dashboardContext from '../../context/dashboard.js';
 
 // Dummy data for social interactions
 const dummySocialInteractions = [
@@ -51,6 +52,48 @@ const dummySocialInteractions = [
     view: 'History Class',
     data: { body: '<p>Updated my essay on World War II with additional sources.</p>' },
     ID: 'contrib-3'
+  },
+  {
+    id: '4',
+    when: Date.now() - 86400000 * 1, // 1 day ago
+    type: 'read',
+    from: 'Alice Brown',
+    fromId: 'author-4',
+    fromPseudo: 'AliceB',
+    to: 'John Smith',
+    toPseudo: 'JohnS',
+    title: 'Climate Change Discussion',
+    view: 'Science Discussion',
+    data: { body: '<p>This is a discussion about climate change and its impacts.</p>' },
+    ID: 'contrib-1'
+  },
+  {
+    id: '5',
+    when: Date.now() - 86400000 * 4, // 4 days ago
+    type: 'created',
+    from: 'Bob Davis',
+    fromId: 'author-5',
+    fromPseudo: 'BobD',
+    to: 'Bob Davis',
+    toPseudo: 'BobD',
+    title: 'Physics Lab Report',
+    view: 'Science Discussion',
+    data: { body: '<p>Lab report on electromagnetic induction experiments.</p>' },
+    ID: 'contrib-4'
+  },
+  {
+    id: '6',
+    when: Date.now() - 86400000 * 6, // 6 days ago
+    type: 'modified',
+    from: 'Carol White',
+    fromId: 'author-6',
+    fromPseudo: 'CarolW',
+    to: 'Carol White',
+    toPseudo: 'CarolW',
+    title: 'Literature Analysis',
+    view: 'English Class',
+    data: { body: '<p>Analysis of Shakespeare\'s Hamlet themes and characters.</p>' },
+    ID: 'contrib-5'
   }
 ];
 
@@ -71,163 +114,150 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
   const [dateRange, setDateRange] = useState<string>('');
   const [showTooltip, setShowTooltip] = useState(false);
   const [currentAuthor] = useState({ _id: community.author.id, role: loggedInPersonRole, name: me?.firstName+" "+me?.lastName, pseudoName: me?.pseudoName });
+  const [filteredData, setFilteredData] = useState<any[]>([]);
+  const isManager = loggedInPersonRole === 'manager';
+  const [crossfilterInstance, setCrossfilterInstance] = useState<any>(null);
+
+  // Simulate data loading
   const data = { getSocialInteractions: dummySocialInteractions };
-const [filteredData, setFilteredData] = useState<any[]>([]);
-const isManager = loggedInPersonRole === 'manager';
-const [crossfilterInstance, setCrossfilterInstance] = useState<any>(null);
-const [selectedAuthor, setSelectedAuthor] = useState<string>('');
+  const loading = false;
+  const error = null;
 
-useEffect(() => {
-  if (data && data.getSocialInteractions &&  data.getSocialInteractions.length>0) {
-    let parsed = data.getSocialInteractions.map((d) => {
-      const dCopy = { ...d }; 
-      const date = new Date(parseInt(dCopy.when));
-      dCopy.date = date;
-      dCopy.year = new Date(date.getFullYear(), 0, 1);
-      dCopy.month = new Date(date.getFullYear(), date.getMonth(), 1);
-      dCopy.day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-      dCopy.week = new Date(date.getFullYear(), date.getMonth(), date.getDate() - date.getDay());
-      dCopy.value = 1;
-      dCopy.read = 0;
-      dCopy.modify = 0;
-      dCopy.buildson = 0;
-      dCopy[dCopy.type] = 1;
-      return dCopy;
-    });
+  useEffect(() => {
+    if (data && data.getSocialInteractions && data.getSocialInteractions.length > 0) {
+      let parsed = data.getSocialInteractions.map((d) => {
+        const dCopy = { ...d }; 
+        const date = new Date(parseInt(dCopy.when));
+        dCopy.date = date;
+        dCopy.year = new Date(date.getFullYear(), 0, 1);
+        dCopy.month = new Date(date.getFullYear(), date.getMonth(), 1);
+        dCopy.day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        dCopy.week = new Date(date.getFullYear(), date.getMonth(), date.getDate() - date.getDay());
+        dCopy.value = 1;
+        dCopy.read = 0;
+        dCopy.modify = 0;
+        dCopy.buildson = 0;
+        dCopy[dCopy.type] = 1;
+        return dCopy;
+      });
 
+      setTimeout(() => {
+        const { statsData, labelsData, viewsGroupData, viewDim, ndx} = initializeCharts(parsed, hideNames, currentAuthor);
+        setStatisticsData(statsData);
+        setLabels(labelsData);
+        setViewDimension(viewDim);
+        setViewsData(viewsGroupData || []);
 
-    setTimeout(() => {
-      const { statsData, labelsData, viewsGroupData, viewDim, ndx} = initializeCharts(parsed, hideNames, currentAuthor);
-      setStatisticsData(statsData);
-      setLabels(labelsData);
-      setViewDimension(viewDim);
-      setViewsData(viewsGroupData || []);
-
-      setCrossfilterInstance(ndx);
-      const updateFilteredData = () => {
-        if (ndx) {
-          const allFiltered = ndx.allFiltered();
-          setFilteredData(allFiltered);
-          
-          // Update statistics data based on filtered data
-          const authorDimension = ndx.dimension((d: any) => {
-            return hideNames && d.fromId !== currentAuthor?._id ? d.fromPseudo : d.from;
-          });
-          
-          const groupedDimension = authorDimension.group().reduce(
-            (p: any, v: any) => {
-              p[v.type] += 1;
-              p.total += 1;
-              return p;
-            },
-            (p: any, v: any) => {
-              p[v.type] -= 1;
-              p.total -= 1;
-              return p;
-            },
-            () => ({ read: 0, modified: 0, created: 0, total: 0 })
-          );
-          
-          const newStatsData = groupedDimension.all().filter((d: any) => d.value.total > 0);
-          setStatisticsData(newStatsData);
-        }
-      };
-
-      const updateSelectedAuthor = () => {
-        const authorChart = dc.chartRegistry.list().find(chart => chart.anchor() === '#author-chart');
-        if (authorChart && authorChart.hasFilter()) {
-          const authorFilters = authorChart.filters();
-          if (authorFilters.length > 0) {
-            setSelectedAuthor(authorFilters[0]);
-          }
-        } else {
-          setSelectedAuthor('');
-        }
-      };
-
-      const lineChart = dc.chartRegistry.list().find(chart => chart.anchor() === '#line-chart');
-      const rangeChart = dc.chartRegistry.list().find(chart => chart.anchor() === '#range-chart');
-      const typeChart = dc.chartRegistry.list().find(chart => chart.anchor() === '#type-chart');
-      const authorChart = dc.chartRegistry.list().find(chart => chart.anchor() === '#author-chart');
-      if (lineChart && rangeChart) {
-        const updateRangeDisplay = () => {
-          const hasLineFilter = lineChart.hasFilter();
-          const hasRangeFilter = rangeChart.hasFilter();
-          const hasFilter = hasLineFilter || hasRangeFilter;
-          
-          setRangeFilterActive(hasFilter);
-          
-          if (hasFilter) {
-            let filter = null;
-            if (hasLineFilter) {
-              filter = lineChart.filter();
-            } else if (hasRangeFilter) {
-              filter = rangeChart.filter();
-            }
+        setCrossfilterInstance(ndx);
+        const updateFilteredData = () => {
+          if (ndx) {
+            const allFiltered = ndx.allFiltered();
+            setFilteredData(allFiltered);
             
-            if (filter && Array.isArray(filter) && filter.length === 2) {
-              const startDate = new Date(filter[0]);
-              const endDate = new Date(filter[1]);
-              const formatDate = (date: Date) => {
-                return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}/${date.getFullYear()}`;
-              };
-              setDateRange(`[${formatDate(startDate)} -> ${formatDate(endDate)}]`);
-            }
-          } else {
-            setDateRange('');
+            // Update statistics data based on filtered data
+            const authorDimension = ndx.dimension((d: any) => {
+              return hideNames && d.fromId !== currentAuthor?._id ? d.fromPseudo : d.from;
+            });
+            
+            const groupedDimension = authorDimension.group().reduce(
+              (p: any, v: any) => {
+                p[v.type] += 1;
+                p.total += 1;
+                return p;
+              },
+              (p: any, v: any) => {
+                p[v.type] -= 1;
+                p.total -= 1;
+                return p;
+              },
+              () => ({ read: 0, modified: 0, created: 0, total: 0 })
+            );
+            
+            const newStatsData = groupedDimension.all().filter((d: any) => d.value.total > 0);
+            setStatisticsData(newStatsData);
           }
-          updateFilteredData();
         };
 
-        lineChart.on('filtered', null);
-        rangeChart.on('filtered', null);
+        const lineChart = dc.chartRegistry.list().find(chart => chart.anchor() === '#line-chart');
+        const rangeChart = dc.chartRegistry.list().find(chart => chart.anchor() === '#range-chart');
+        const typeChart = dc.chartRegistry.list().find(chart => chart.anchor() === '#type-chart');
+        const authorChart = dc.chartRegistry.list().find(chart => chart.anchor() === '#author-chart');
+        
+        if (lineChart && rangeChart) {
+          const updateRangeDisplay = () => {
+            const hasLineFilter = lineChart.hasFilter();
+            const hasRangeFilter = rangeChart.hasFilter();
+            const hasFilter = hasLineFilter || hasRangeFilter;
+            
+            setRangeFilterActive(hasFilter);
+            
+            if (hasFilter) {
+              let filter = null;
+              if (hasLineFilter) {
+                filter = lineChart.filter();
+              } else if (hasRangeFilter) {
+                filter = rangeChart.filter();
+              }
+              
+              if (filter && Array.isArray(filter) && filter.length === 2) {
+                const startDate = new Date(filter[0]);
+                const endDate = new Date(filter[1]);
+                const formatDate = (date: Date) => {
+                  return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}/${date.getFullYear()}`;
+                };
+                setDateRange(`[${formatDate(startDate)} -> ${formatDate(endDate)}]`);
+              }
+            } else {
+              setDateRange('');
+            }
+            updateFilteredData();
+          };
 
-        lineChart.on('filtered', updateRangeDisplay);
-        rangeChart.on('filtered', updateRangeDisplay);
-      }
+          lineChart.on('filtered', null);
+          rangeChart.on('filtered', null);
 
-      if (typeChart) {
-        typeChart.on('filtered', () => {
-          updateFilteredData();
-          updateSelectedAuthor();
-        });
-      }
-      if (authorChart) {
-        authorChart.on('filtered', () => {
-          updateFilteredData();
-          updateSelectedAuthor();
-        });
-      }
-      updateFilteredData();
-      updateSelectedAuthor();
+          lineChart.on('filtered', updateRangeDisplay);
+          rangeChart.on('filtered', updateRangeDisplay);
+        }
 
-    }, 100);
-  }
-}, [data, hideNames]);
+        if (typeChart) {
+          typeChart.on('filtered', () => {
+            updateFilteredData();
+          });
+        }
+        if (authorChart) {
+          authorChart.on('filtered', () => {
+            updateFilteredData();
+          });
+        }
+        updateFilteredData();
 
-const toggleNames = () => {
-  if (isManager) {
-    setHideNames(!hideNames);
-    setSelectedView('');
-  } else {
-    setShowTooltip(true);
-    setTimeout(() => setShowTooltip(false), 3000);
-  }
-};
+      }, 100);
+    }
+  }, [data, hideNames, currentAuthor]);
 
+  const toggleNames = () => {
+    if (isManager) {
+      setHideNames(!hideNames);
+      setSelectedView('');
+    } else {
+      setShowTooltip(true);
+      setTimeout(() => setShowTooltip(false), 3000);
+    }
+  };
 
-const toggleManagers = () => {
-  if (isManager) {
-    setHideManagers(!hideManagers);
-  } 
-};
+  const toggleManagers = () => {
+    if (isManager) {
+      setHideManagers(!hideManagers);
+    } 
+  };
 
   const toggleDailyActivity = () => {
     setDailyActivityVisible(!dailyActivityVisible);
   };
 
   const resetFilters = () => {
-    setFilteredData(data);
+    setFilteredData(data.getSocialInteractions);
     dc.filterAll();
     dc.renderAll();
     if (viewDimension) {
@@ -237,7 +267,6 @@ const toggleManagers = () => {
     setSelectedView('');
     setRangeFilterActive(false);
     setDateRange('');
-    setSelectedAuthor('');
   };
 
   const resetRangeFilter = () => {
@@ -256,12 +285,12 @@ const toggleManagers = () => {
 
   const handleViewSelect = (viewKey: string) => {
     setSelectedView(viewKey);
-      if (viewDimension) {
-        if (viewKey === '') {
-          viewDimension.filterAll();
-        } else {
-          viewDimension.filter(viewKey);
-        }
+    if (viewDimension) {
+      if (viewKey === '') {
+        viewDimension.filterAll();
+      } else {
+        viewDimension.filter(viewKey);
+      }
       dc.redrawAll();
       if (crossfilterInstance) {
         const allFiltered = crossfilterInstance.allFiltered();
@@ -291,6 +320,9 @@ const toggleManagers = () => {
     }
   };
 
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error loading data</div>;
+
   return (
     <div className="activity-dashboard">
       <div className="activity-container">
@@ -314,7 +346,7 @@ const toggleManagers = () => {
                 </div>
               )}
             </div>
-              </div>
+          </div>
         </div>
         
         <div className="unified-dashboard-box">
@@ -356,7 +388,6 @@ const toggleManagers = () => {
               <div className="reset-controls" style={{ display: rangeFilterActive ? 'block' : 'none' }}>
                 range: <span className="filter">{dateRange}</span>
                 <a className="reset-link" style={{cursor:'pointer'}} onClick={resetRangeFilter}>reset</a>
-
               </div>
               <div style={{width:'300px'}} id="line-chart"></div>
             </div>
@@ -371,7 +402,7 @@ const toggleManagers = () => {
         </div>
 
         <div className="data-section">
-        <SocialNetworkSection 
+          <SocialNetworkSection 
             data={filteredData} 
             hideNames={hideNames} 
             currentAuthor={currentAuthor} 
