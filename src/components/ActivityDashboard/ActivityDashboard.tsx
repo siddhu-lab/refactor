@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { useQuery } from '@apollo/client';
 import { initializeCharts } from './chartUtils.ts';
 import StatisticsTable from './StatisticsTable.tsx';
 import MainDataTable from './MainDataTable/MainDataTable.tsx';
@@ -8,9 +7,47 @@ import * as dc from 'dc';
 import './ActivityDashboard.css';
 import './dc.css';
 import dashboardContext from "../../context/dashboard.js";
-import Dictionary from "../../Queries/Dictionary.js";
 import SocialNetworkSection from './SocialNetworkSection/SocialNetworkSection.tsx';
 
+// Dummy data for social interactions
+const dummySocialInteractions = [
+  {
+    id: '1',
+    when: Date.now() - 86400000 * 5, // 5 days ago
+    type: 'read',
+    from: 'John Smith',
+    fromId: 'author-1',
+    fromPseudo: 'JohnS',
+    to: 'Sarah Johnson',
+    toPseudo: 'SarahJ',
+    title: 'Climate Change Discussion',
+    view: 'Science Discussion',
+    data: { body: '<p>This is a discussion about climate change and its impacts.</p>' },
+    ID: 'contrib-1'
+  },
+  {
+    id: '2',
+    when: Date.now() - 86400000 * 3, // 3 days ago
+    type: 'created',
+    from: 'Sarah Johnson',
+    fromId: 'author-2',
+    fromPseudo: 'SarahJ',
+    to: 'Sarah Johnson',
+    toPseudo: 'SarahJ',
+    title: 'Mathematical Proof Analysis',
+    view: 'Math Problems',
+    data: { body: '<p>Here is my analysis of the mathematical proof presented in class.</p>' },
+    ID: 'contrib-2'
+  },
+  {
+    id: '3',
+    when: Date.now() - 86400000 * 2, // 2 days ago
+    type: 'modified',
+    from: 'Mike Wilson',
+    fromId: 'author-3',
+    fromPseudo: 'MikeW',
+    to: 'Mike Wilson',
+    toPseudo: 'MikeW',
 interface ActivityDashboardProps {}
 
 const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
