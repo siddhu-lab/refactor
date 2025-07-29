@@ -6,8 +6,6 @@ import ViewsDropdown from './ViewsDropdown.tsx';
 import * as dc from 'dc';
 import './ActivityDashboard.css';
 import './dc.css';
-import dashboardContext from "../../context/dashboard.js";
-import SocialNetworkSection from './SocialNetworkSection/SocialNetworkSection.tsx';
 
 // Dummy data for social interactions
 const dummySocialInteractions = [
@@ -72,9 +70,7 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
   const [dateRange, setDateRange] = useState<string>('');
   const [showTooltip, setShowTooltip] = useState(false);
   const [currentAuthor] = useState({ _id: community.author.id, role: loggedInPersonRole, name: me?.firstName+" "+me?.lastName, pseudoName: me?.pseudoName });
-  const { data, loading, error } = useQuery(Dictionary.getSocialInteractions, {
-  variables: { communityId: community.id }
-});
+  const data = { getSocialInteractions: dummySocialInteractions };
 const [filteredData, setFilteredData] = useState<any[]>([]);
 const isManager = loggedInPersonRole === 'manager';
 const [crossfilterInstance, setCrossfilterInstance] = useState<any>(null);
