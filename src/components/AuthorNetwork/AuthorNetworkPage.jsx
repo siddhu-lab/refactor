@@ -94,14 +94,10 @@ const AuthorNetwork = () => {
     pseudonames: false,
     singleContribs: true
   });
-  const [exportTableReady, setExportTableReady] = useState(true);
   const [networkInfo, setNetworkInfo] = useState('');
-  const [tableData, setTableData] = useState([]);
 
   const networkRef = useRef();
   const svgRef = useRef();
-  const fromDateInputRef = useRef();
-  const toDateInputRef = useRef();
   const [links, setLinks] = useState([]);
   const [contributions, setContributions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -738,7 +734,6 @@ const AuthorNetwork = () => {
                       type="button" 
                       className="btn btn-light dropdown-button text-left" 
                       onClick={downloadCSV}
-                      disabled={!exportTableReady}
                     >
                       CSV
                     </button>
