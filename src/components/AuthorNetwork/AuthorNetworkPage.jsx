@@ -3,13 +3,72 @@ import * as d3 from 'd3';
 import './AuthorNetwork.css';
 import { useContext } from "react";
 import dashboardContext from "../../context/dashboard.js";
-import { useLazyQuery, useQuery } from '@apollo/client';
-import Dictionary from "../../Queries/Dictionary.js";
 import { DatePicker } from 'antd';
 import dayjs from 'dayjs';
 import 'antd/dist/reset.css';
 import { exportCSV } from './ExportCSV.jsx';
 
+// Dummy data for buildson links
+const dummyBuildsonLinks = [
+  {
+    id: 'link-1',
+    from: 'contrib-1',
+    to: 'contrib-2',
+    type: 'buildson',
+    created: Date.now() - 86400000 * 3,
+    _from: {
+      authors: ['author-1']
+    },
+    _to: {
+      authors: ['author-2']
+    }
+  },
+  {
+    id: 'link-2',
+    from: 'contrib-2',
+    to: 'contrib-3',
+    type: 'buildson',
+    created: Date.now() - 86400000 * 2,
+    _from: {
+      authors: ['author-2']
+    },
+    _to: {
+      authors: ['author-3']
+    }
+  }
+];
+
+// Dummy data for contributions
+const dummyContributions = [
+  {
+    id: 'contrib-1',
+    title: 'Climate Change Discussion',
+    created: Date.now() - 86400000 * 5,
+    authors: ['author-1'],
+    data: { body: 'This is a discussion about climate change and its impacts.' }
+  },
+  {
+    id: 'contrib-2',
+    title: 'Mathematical Proof Analysis',
+    created: Date.now() - 86400000 * 3,
+    authors: ['author-2'],
+    data: { body: 'Here is my analysis of the mathematical proof presented in class.' }
+  },
+  {
+    id: 'contrib-3',
+    title: 'Literature Review Update',
+    created: Date.now() - 86400000 * 2,
+    authors: ['author-3'],
+    data: { body: 'Updated the literature review with new sources and analysis.' }
+  },
+  {
+    id: 'contrib-4',
+    title: 'Research Methodology',
+    created: Date.now() - 86400000 * 1,
+    authors: ['author-4'],
+    data: { body: 'Exploring different research methodologies for our project.' }
+  }
+];
 
 
 const AuthorNetwork = () => {
@@ -19,21 +78,10 @@ const AuthorNetwork = () => {
   const views = allViews.filter(view => view.title?.toLowerCase() !== 'riseabove:' && view.title?.toLowerCase() !== 'riseabove');
   const allAuthors = community.authors || [];
   const { RangePicker } = DatePicker;
-  const [getLinksFromId] = useLazyQuery(Dictionary.getLinksFromId);
-  const [getKObjectById] = useLazyQuery(Dictionary.getKObjectById);
-  const { data: linksData, loading: linksLoading } = useQuery(Dictionary.buildsonLinks, {
-    variables: { communityId: community.id },
-  });
-  
-  const { data: contribData, loading: contribLoading } = useQuery(Dictionary.searchContributions, {
-    variables: {
-      query: {
-        communityId: community.id,
-        status: "active",
-        pagesize: 10000,
-      },
-    },
-  });
+  const [linksData] = useState({ buildsonLinks: dummyBuildsonLinks });
+  const [contribData] = useState({ searchContributions: dummyContributions });
+  const [linksLoading] = useState(false);
+  const [contribLoading] = useState(false);
   
   const [selectedGroup, setSelectedGroup] = useState('allGroups');
   const [selectedView, setSelectedView] = useState('allViews');
@@ -63,12 +111,12 @@ const AuthorNetwork = () => {
   var sm;
 
   useEffect(() => {
-    if (linksData && contribData) {
+    if (linksData && contribData && !linksLoading && !contribLoading) {
       setLinks(linksData.buildsonLinks || []);
       setContributions(contribData.searchContributions || []);
       refreshView(linksData.buildsonLinks, contribData.searchContributions);
     }
-  }, [linksData, contribData]);
+  }, [linksData, contribData, linksLoading, contribLoading]);
   
   
 
@@ -447,8 +495,10 @@ const AuthorNetwork = () => {
       }
     
       try {
-        const { data } = await getLinksFromId({ variables: { fromId: viewId } }); 
-        const linksData = data?.getLinksFromId || [];
+        // Mock data for view links
+        const linksData = dummyBuildsonLinks.filter(link => 
+          link.from === viewId || link.to === viewId
+        );
     
         const authorsMap = {};
         const filters = {};
@@ -467,14 +517,15 @@ const AuthorNetwork = () => {
         refreshView(links, contributions, group, filters); 
     
       } catch (error) {
-        console.log(`Get links for view: ${viewId} failed!`, error);
+        console.log(`Get links for view: ${viewId} failed!`);
       }
     
   };
 
   const getLinksData = async() => {
-    const { data } = await getLinksFromId({ variables: { fromId: selectedView } }); 
-        const linksData = data?.getLinksFromId || [];
+        const linksData = dummyBuildsonLinks.filter(link => 
+          link.from === selectedView || link.to === selectedView
+        );
         var authors = {};
         var filters = {};
         linksData.forEach(function (link) {
@@ -521,10 +572,9 @@ const AuthorNetwork = () => {
 
   const fetchNoteByIdFromAPI = async (noteId) => {
     try {
-      const { data } = await getKObjectById({ variables: { id: noteId } });
-      return data?.getKObjectById || null;
+      return dummyContributions.find(contrib => contrib.id === noteId) || null;
     } catch (err) {
-      console.error("Failed to fetch note by ID:", noteId, err);
+      console.error("Failed to fetch note by ID:", noteId);
       return null;
     }
   };  

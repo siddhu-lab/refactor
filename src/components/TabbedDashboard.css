@@ -1,0 +1,62 @@
+.tabbed-dashboard {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tab-header {
+  background: white;
+  border-bottom: 1px solid #dee2e6;
+  padding: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  transition: all 0.3s ease;
+}
+
+.tab-header.scrolled {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid #e9ecef;
+}
+
+.nav-tabs {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+.nav-tabs li {
+  margin: 0;
+}
+
+.nav-tabs li a {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  text-decoration: none;
+  color: #6c757d;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.nav-tabs li a:hover {
+  color: #495057;
+  background: #f8f9fa;
+}
+
+.nav-tabs li.active a {
+  color: #007bff;
+  border-bottom-color: #007bff;
+  background: white;
+}
+
+.tab-content {
+  flex: 1;
+  overflow: hidden;
+  background: #f8f9fa;
+}
