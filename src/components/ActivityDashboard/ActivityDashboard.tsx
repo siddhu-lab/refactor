@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useRef } from 'react';
 import { initializeCharts } from './chartUtils.ts';
 import StatisticsTable from './StatisticsTable.tsx';
 import MainDataTable from './MainDataTable/MainDataTable.tsx';
