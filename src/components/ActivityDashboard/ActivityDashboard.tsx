@@ -118,13 +118,18 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
   const isManager = loggedInPersonRole === 'manager';
   const [crossfilterInstance, setCrossfilterInstance] = useState<any>(null);
 
+  // Add a ref to track if charts are initialized
+  const chartsInitialized = useRef(false);
+
   // Simulate data loading
   const data = { getSocialInteractions: dummySocialInteractions };
   const loading = false;
   const error = null;
 
   useEffect(() => {
-    if (data && data.getSocialInteractions && data.getSocialInteractions.length > 0) {
+    if (data && data.getSocialInteractions && data.getSocialInteractions.length > 0 && !chartsInitialized.current) {
+      chartsInitialized.current = true;
+      
       let parsed = data.getSocialInteractions.map((d) => {
         const dCopy = { ...d }; 
         const date = new Date(parseInt(dCopy.when));
@@ -234,7 +239,35 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
 
       }, 100);
     }
-  }, [data, hideNames, currentAuthor]);
+  }, []); // Empty dependency array since we're using dummy data
+
+  // Separate useEffect for handling hideNames changes
+  useEffect(() => {
+    if (chartsInitialized.current && crossfilterInstance) {
+      // Re-render charts when hideNames changes
+      const parsed = data.getSocialInteractions.map((d) => {
+        const dCopy = { ...d }; 
+        const date = new Date(parseInt(dCopy.when));
+        dCopy.date = date;
+        dCopy.year = new Date(date.getFullYear(), 0, 1);
+        dCopy.month = new Date(date.getFullYear(), date.getMonth(), 1);
+        dCopy.day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        dCopy.week = new Date(date.getFullYear(), date.getMonth(), date.getDate() - date.getDay());
+        dCopy.value = 1;
+        dCopy.read = 0;
+        dCopy.modify = 0;
+        dCopy.buildson = 0;
+        dCopy[dCopy.type] = 1;
+        return dCopy;
+      });
+
+      setTimeout(() => {
+        const { statsData, labelsData } = initializeCharts(parsed, hideNames, currentAuthor);
+        setStatisticsData(statsData);
+        setLabels(labelsData);
+      }, 100);
+    }
+  }, [hideNames]);
 
   const toggleNames = () => {
     if (isManager) {
