@@ -106,6 +106,8 @@ const UnifiedDashboard: React.FC = () => {
 
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
+  const cardBg = useColorModeValue('white', 'gray.800');
+  const textColor = useColorModeValue('gray.900', 'white');
   const isManager = role === 'manager';
 
   // Dummy data - combining both activity and buildons
@@ -432,7 +434,7 @@ const UnifiedDashboard: React.FC = () => {
   }
 
   return (
-    <Box p={6} bg={useColorModeValue('gray.50', 'gray.900')} minH="100vh">
+    <Box p={6} bg={useColorModeValue('gray.50', 'gray.900')} minH="100vh" color={textColor}>
       <VStack spacing={6} align="stretch">
         {/* Header */}
         <Card>
@@ -486,8 +488,8 @@ const UnifiedDashboard: React.FC = () => {
                   📊 Activity Analysis
                 </Button>
                 <Button
-                  colorScheme={viewMode === 'buildson' ? 'blue' : 'gray'}
-                  onClick={() => setViewMode('buildson')}
+                  colorScheme={viewMode === 'buildons' ? 'blue' : 'gray'}
+                  onClick={() => setViewMode('buildons')}
                   size="lg"
                 >
                   🔗 Knowledge Building
@@ -658,10 +660,10 @@ const UnifiedDashboard: React.FC = () => {
               <VStack spacing={4}>
                 <Box w="full">
                   <Text fontWeight="bold" mb={2}>Timeline</Text>
-                  <Box ref={lineChartRef} id="line-chart" h="200px" />
+                  <Box ref={lineChartRef} id="line-chart" h="200px" bg={cardBg} />
                 </Box>
                 <Box w="full">
-                  <Box ref={rangeChartRef} id="range-chart" h="60px" />
+                  <Box ref={rangeChartRef} id="range-chart" h="60px" bg={cardBg} />
                 </Box>
               </VStack>
             </CardBody>
@@ -678,7 +680,7 @@ const UnifiedDashboard: React.FC = () => {
                 </Heading>
               </CardHeader>
               <CardBody>
-                <Box ref={networkRef} h="500px" border="1px" borderColor={borderColor} borderRadius="md" />
+                <Box ref={networkRef} h="500px" border="1px" borderColor={borderColor} borderRadius="md" bg={cardBg} />
               </CardBody>
             </Card>
 
