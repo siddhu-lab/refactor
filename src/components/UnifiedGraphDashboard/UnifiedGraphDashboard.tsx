@@ -246,7 +246,7 @@ const UnifiedGraphDashboard: React.FC = () => {
   };
 
   return (
-    <Box p={6} bg={useColorModeValue('gray.50', 'gray.900')} minH="100vh">
+    <Box p={6} bg={useColorModeValue('gray.50', 'gray.900')} minH="100vh" overflowY="auto">
       <VStack spacing={6} align="stretch">
         {/* Header */}
         <Card>
@@ -392,9 +392,9 @@ const UnifiedGraphDashboard: React.FC = () => {
         </Card>
 
         {/* Main Content */}
-        <HStack spacing={6} align="start">
+        <HStack spacing={6} align="start" minH="600px">
           {/* Graph */}
-          <Card flex="1" minH="600px">
+          <Card flex="1" h="600px">
             <CardHeader>
               <HStack justify="space-between">
                 <Heading size="md">
@@ -405,20 +405,20 @@ const UnifiedGraphDashboard: React.FC = () => {
             </CardHeader>
             <CardBody>
               {loading ? (
-                <Center h="500px">
+                <Center h="450px">
                   <VStack>
                     <Spinner size="xl" />
                     <Text>Loading graph data...</Text>
                   </VStack>
                 </Center>
               ) : (
-                <Box ref={networkRef} h="500px" border="1px" borderColor={borderColor} borderRadius="md" />
+                <Box ref={networkRef} h="450px" border="1px" borderColor={borderColor} borderRadius="md" />
               )}
             </CardBody>
           </Card>
 
           {/* Sidebar */}
-          <VStack spacing={4} w="300px">
+          <VStack spacing={4} w="300px" maxH="600px" overflowY="auto">
             {/* Stats */}
             <Card w="full">
               <CardHeader>
