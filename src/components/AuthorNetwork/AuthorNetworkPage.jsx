@@ -42,30 +42,38 @@ const dummyBuildsonLinks = [
 const dummyContributions = [
   {
     id: 'contrib-1',
+    _id: 'contrib-1',
     title: 'Climate Change Discussion',
     created: Date.now() - 86400000 * 5,
     authors: ['author-1'],
+    type: 'note',
     data: { body: 'This is a discussion about climate change and its impacts.' }
   },
   {
     id: 'contrib-2',
+    _id: 'contrib-2',
     title: 'Mathematical Proof Analysis',
     created: Date.now() - 86400000 * 3,
     authors: ['author-2'],
+    type: 'note',
     data: { body: 'Here is my analysis of the mathematical proof presented in class.' }
   },
   {
     id: 'contrib-3',
+    _id: 'contrib-3',
     title: 'Literature Review Update',
     created: Date.now() - 86400000 * 2,
     authors: ['author-3'],
+    type: 'note',
     data: { body: 'Updated the literature review with new sources and analysis.' }
   },
   {
     id: 'contrib-4',
+    _id: 'contrib-4',
     title: 'Research Methodology',
     created: Date.now() - 86400000 * 1,
     authors: ['author-4'],
+    type: 'note',
     data: { body: 'Exploring different research methodologies for our project.' }
   }
 ];
