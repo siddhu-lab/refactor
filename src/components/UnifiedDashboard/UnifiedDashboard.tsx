@@ -108,6 +108,7 @@ const UnifiedDashboard: React.FC = () => {
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const cardBg = useColorModeValue('white', 'gray.800');
   const textColor = useColorModeValue('gray.900', 'white');
+  const mainBgColor = useColorModeValue('gray.50', 'gray.900');
   const isManager = role === 'manager';
 
   // Dummy data - combining both activity and buildons
@@ -434,7 +435,7 @@ const UnifiedDashboard: React.FC = () => {
   }
 
   return (
-    <Box p={6} bg={useColorModeValue('gray.50', 'gray.900')} minH="100vh" color={textColor}>
+    <Box p={6} bg={mainBgColor} minH="100vh" color={textColor}>
       <VStack spacing={6} align="stretch">
         {/* Header */}
         <Card>
