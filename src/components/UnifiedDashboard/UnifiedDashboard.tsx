@@ -11,7 +11,6 @@ import {
   CardBody,
   Heading,
   Badge,
-  Flex,
   Switch,
   FormControl,
   FormLabel,
@@ -29,11 +28,13 @@ import {
   Spinner,
   Center,
   SimpleGrid,
-  Tooltip,
   Icon,
   Alert,
   AlertIcon,
-  AlertDescription
+  AlertDescription,
+  RadioGroup,
+  Radio,
+  Stack
 } from '@chakra-ui/react';
 import { InfoIcon, SettingsIcon } from '@chakra-ui/icons';
 import { Network } from 'vis-network';
@@ -57,6 +58,9 @@ const UnifiedDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [network, setNetwork] = useState<Network | null>(null);
   
+  // Data Type Selection (only one at a time)
+  const [dataType, setDataType] = useState<'activity' | 'knowledge'>('activity');
+  
   // Filter State
   const [selectedView, setSelectedView] = useState('all');
   const [selectedGroup, setSelectedGroup] = useState('all');
@@ -64,8 +68,6 @@ const UnifiedDashboard: React.FC = () => {
   const [dateRange, setDateRange] = useState('all');
   
   // Display Options
-  const [showActivityData, setShowActivityData] = useState(true);
-  const [showBuildsonData, setShowBuildsonData] = useState(true);
   const [hideNames, setHideNames] = useState(role !== 'manager');
   
   // Graph Settings
@@ -84,9 +86,11 @@ const UnifiedDashboard: React.FC = () => {
   const [hoveredEdgeInfo, setHoveredEdgeInfo] = useState<any>(null);
 
   const isManager = role === 'manager';
+  const currentUserName = `${me?.firstName} ${me?.lastName}`;
 
-  // Enhanced dummy data combining activity and buildson relationships
+  // Enhanced dummy data
   const dummyData = [
+    // Activity data
     {
       id: '1', when: Date.now() - 86400000 * 5, type: 'read',
       from: 'John Smith', fromId: 'author-1', fromPseudo: 'JohnS',
@@ -112,20 +116,20 @@ const UnifiedDashboard: React.FC = () => {
       ID: 'contrib-3'
     },
     {
-      id: '4', when: Date.now() - 86400000 * 1, type: 'buildson',
+      id: '4', when: Date.now() - 86400000 * 1, type: 'read',
       from: 'Alice Brown', fromId: 'author-4', fromPseudo: 'AliceB',
       to: 'John Smith', toPseudo: 'JohnS',
-      title: 'Building on Climate Discussion', view: 'Science Discussion',
-      data: { body: '<p>Building on the climate change discussion with additional research.</p>' },
-      ID: 'contrib-4', strength: 3
+      title: 'Climate Change Discussion', view: 'Science Discussion',
+      data: { body: '<p>Reading the climate change discussion.</p>' },
+      ID: 'contrib-1'
     },
     {
-      id: '5', when: Date.now() - 86400000 * 4, type: 'buildson',
+      id: '5', when: Date.now() - 86400000 * 4, type: 'read',
       from: 'Bob Davis', fromId: 'author-5', fromPseudo: 'BobD',
       to: 'Sarah Johnson', toPseudo: 'SarahJ',
-      title: 'Math Proof Extension', view: 'Math Problems',
-      data: { body: '<p>Extending the mathematical proof with new theorems.</p>' },
-      ID: 'contrib-5', strength: 2
+      title: 'Mathematical Proof Analysis', view: 'Math Problems',
+      data: { body: '<p>Reading the mathematical proof analysis.</p>' },
+      ID: 'contrib-2'
     },
     {
       id: '6', when: Date.now() - 86400000 * 6, type: 'read',
@@ -135,13 +139,38 @@ const UnifiedDashboard: React.FC = () => {
       data: { body: '<p>Reading the updated history essay.</p>' },
       ID: 'contrib-3'
     },
+    // Knowledge building data
     {
-      id: '7', when: Date.now() - 86400000 * 7, type: 'buildson',
+      id: '7', when: Date.now() - 86400000 * 1, type: 'buildson',
+      from: 'Alice Brown', fromId: 'author-4', fromPseudo: 'AliceB',
+      to: 'John Smith', toPseudo: 'JohnS',
+      title: 'Building on Climate Discussion', view: 'Science Discussion',
+      data: { body: '<p>Building on the climate change discussion with additional research.</p>' },
+      ID: 'contrib-4', strength: 3
+    },
+    {
+      id: '8', when: Date.now() - 86400000 * 4, type: 'buildson',
+      from: 'Bob Davis', fromId: 'author-5', fromPseudo: 'BobD',
+      to: 'Sarah Johnson', toPseudo: 'SarahJ',
+      title: 'Math Proof Extension', view: 'Math Problems',
+      data: { body: '<p>Extending the mathematical proof with new theorems.</p>' },
+      ID: 'contrib-5', strength: 2
+    },
+    {
+      id: '9', when: Date.now() - 86400000 * 7, type: 'buildson',
       from: 'John Smith', fromId: 'author-1', fromPseudo: 'JohnS',
       to: 'Bob Davis', toPseudo: 'BobD',
       title: 'Further Math Extensions', view: 'Math Problems',
       data: { body: '<p>Building further on the mathematical concepts.</p>' },
       ID: 'contrib-6', strength: 1
+    },
+    {
+      id: '10', when: Date.now() - 86400000 * 3, type: 'buildson',
+      from: 'Sarah Johnson', fromId: 'author-2', fromPseudo: 'SarahJ',
+      to: 'John Smith', toPseudo: 'JohnS',
+      title: 'Climate Research Extension', view: 'Science Discussion',
+      data: { body: '<p>Building on climate research with new data.</p>' },
+      ID: 'contrib-7', strength: 2
     }
   ];
 
@@ -158,21 +187,19 @@ const UnifiedDashboard: React.FC = () => {
       });
       
       setRawData(processedData);
-      setFilteredData(processedData);
       setLoading(false);
     }, 500);
   }, []);
 
-  // Apply filters to data
+  // Apply filters to data based on selected data type
   const applyFilters = (data: any[]) => {
     let filtered = data;
 
-    // Data type filters
-    if (!showActivityData) {
-      filtered = filtered.filter(d => !['read', 'created', 'modified'].includes(d.type));
-    }
-    if (!showBuildsonData) {
-      filtered = filtered.filter(d => d.type !== 'buildson');
+    // Filter by data type first
+    if (dataType === 'activity') {
+      filtered = filtered.filter(d => ['read', 'created', 'modified'].includes(d.type));
+    } else {
+      filtered = filtered.filter(d => d.type === 'buildson');
     }
 
     // View filter
@@ -214,9 +241,10 @@ const UnifiedDashboard: React.FC = () => {
   useEffect(() => {
     const filtered = applyFilters(rawData);
     setFilteredData(filtered);
-  }, [rawData, showActivityData, showBuildsonData, selectedView, selectedGroup, selectedAuthor, dateRange]);
+    setSelectedNodeInfo(null); // Clear selection when data changes
+  }, [rawData, dataType, selectedView, selectedGroup, selectedAuthor, dateRange]);
 
-  // Process network data
+  // Process network data based on data type
   const networkData = useMemo(() => {
     const nodes = new Map();
     const edges: any[] = [];
@@ -227,13 +255,13 @@ const UnifiedDashboard: React.FC = () => {
     
     filteredData.forEach((item: any) => {
       const fromName = hideNames && item.fromId !== community.author.id ? item.fromPseudo : item.from;
-      const toName = item.to ? (hideNames && item.to !== me?.firstName + " " + me?.lastName ? item.toPseudo : item.to) : fromName;
+      const toName = item.to ? (hideNames && item.to !== currentUserName ? item.toPseudo : item.to) : fromName;
       
       // Track user activities
       if (!userActivities.has(fromName)) {
         userActivities.set(fromName, {
           reads: 0, creates: 0, modifies: 0, buildons: 0,
-          activities: [], buildsonConnections: []
+          activities: [], buildsonConnections: [], builtUponBy: []
         });
       }
       
@@ -245,45 +273,52 @@ const UnifiedDashboard: React.FC = () => {
       else if (item.type === 'modified') userActivity.modifies++;
       else if (item.type === 'buildson') {
         userActivity.buildons++;
-        userActivity.buildsonConnections.push({ target: toName, strength: item.strength || 1, title: item.title });
+        userActivity.buildsonConnections.push({ 
+          target: toName, 
+          strength: item.strength || 1, 
+          title: item.title,
+          date: item.date
+        });
+        
+        // Track who built upon this user's work
+        if (!userActivities.has(toName)) {
+          userActivities.set(toName, {
+            reads: 0, creates: 0, modifies: 0, buildons: 0,
+            activities: [], buildsonConnections: [], builtUponBy: []
+          });
+        }
+        userActivities.get(toName).builtUponBy.push({
+          source: fromName,
+          strength: item.strength || 1,
+          title: item.title,
+          date: item.date
+        });
       }
       
       // Create nodes
       const isCurrentUser = item.fromId === community.author.id;
-      const hasActivity = ['read', 'created', 'modified'].includes(item.type);
-      const hasBuildson = item.type === 'buildson';
       
       if (!nodes.has(fromName)) {
         nodes.set(fromName, {
           id: fromName,
           label: showNodeLabels ? fromName : '',
           size: nodeSize,
-          color: isCurrentUser ? '#e53e3e' : (hasBuildson ? '#805ad5' : '#3182ce'),
+          color: isCurrentUser ? '#e53e3e' : '#3182ce',
           borderWidth: 2,
           interactions: 1,
           isCurrentUser,
-          activityCount: hasActivity ? 1 : 0,
-          buildsonCount: hasBuildson ? 1 : 0,
           font: { size: showNodeLabels ? 14 : 0, color: '#333333' },
           shadow: { enabled: true, color: 'rgba(0,0,0,0.2)', size: 5, x: 2, y: 2 }
         });
       } else {
         const node = nodes.get(fromName);
         node.interactions += 1;
-        if (hasActivity) node.activityCount += 1;
-        if (hasBuildson) node.buildsonCount += 1;
-        
-        // Update color based on mixed activity
-        if (node.activityCount > 0 && node.buildsonCount > 0) {
-          node.color = isCurrentUser ? '#e53e3e' : '#9f7aea';
-        }
-        
         node.size = Math.max(nodeSize, Math.min(nodeSize * 2, nodeSize + (node.interactions * 2)));
       }
       
       // Create target node if different
       if (fromName !== toName && item.to) {
-        const isTargetCurrentUser = toName === me?.firstName + " " + me?.lastName;
+        const isTargetCurrentUser = toName === currentUserName;
         if (!nodes.has(toName)) {
           nodes.set(toName, {
             id: toName,
@@ -293,8 +328,6 @@ const UnifiedDashboard: React.FC = () => {
             borderWidth: 2,
             interactions: 1,
             isCurrentUser: isTargetCurrentUser,
-            activityCount: 0,
-            buildsonCount: 0,
             font: { size: showNodeLabels ? 14 : 0, color: '#333333' },
             shadow: { enabled: true, color: 'rgba(0,0,0,0.2)', size: 5, x: 2, y: 2 }
           });
@@ -303,21 +336,15 @@ const UnifiedDashboard: React.FC = () => {
       
       // Create edges
       if (fromName !== toName && item.to) {
-        const edgeKey = `${fromName}-${toName}`;
-        const reverseKey = `${toName}-${fromName}`;
+        const edgeKey = dataType === 'activity' ? 
+          `${fromName}-${toName}` : // For activity, direction matters less
+          `${fromName}-${toName}`; // For buildson, direction is important
         
-        const existingKey = edgeMap.has(edgeKey) ? edgeKey : (edgeMap.has(reverseKey) ? reverseKey : null);
-        
-        if (existingKey) {
-          const existingEdge = edgeMap.get(existingKey);
+        if (edgeMap.has(edgeKey)) {
+          const existingEdge = edgeMap.get(edgeKey);
           existingEdge.weight += 1;
           existingEdge.width = Math.max(edgeWidth, existingEdge.weight * edgeWidth);
           existingEdge.interactions.push(item);
-          
-          if (!existingEdge.types.includes(item.type)) {
-            existingEdge.types.push(item.type);
-            existingEdge.color = existingEdge.types.length > 1 ? '#718096' : getEdgeColor(item.type);
-          }
         } else {
           const newEdge = {
             id: item.id,
@@ -329,8 +356,7 @@ const UnifiedDashboard: React.FC = () => {
             arrows: showDirections ? 'to' : undefined,
             smooth: edgeSmoothing ? { type: 'continuous' } : false,
             interactions: [item],
-            types: [item.type],
-            label: showEdgeLabels ? item.type : undefined,
+            label: showEdgeLabels ? (dataType === 'activity' ? `${item.type}` : `builds on`) : undefined,
             font: showEdgeLabels ? { size: 10, color: '#666666' } : undefined,
             title: getEdgeTitle(item, fromName, toName),
             shadow: { enabled: true, color: 'rgba(0,0,0,0.1)', size: 3, x: 1, y: 1 }
@@ -344,7 +370,12 @@ const UnifiedDashboard: React.FC = () => {
     // Update edge titles for combined edges
     edgeMap.forEach((edge) => {
       if (edge.interactions.length > 1) {
-        edge.title = `${edge.from} ↔ ${edge.to}\n${edge.interactions.length} interactions\nTypes: ${edge.types.join(', ')}`;
+        if (dataType === 'activity') {
+          const types = [...new Set(edge.interactions.map(i => i.type))];
+          edge.title = `${edge.from} → ${edge.to}\n${edge.interactions.length} interactions\nTypes: ${types.join(', ')}`;
+        } else {
+          edge.title = `${edge.from} built on ${edge.to}'s work\n${edge.interactions.length} times`;
+        }
       }
       edges.push(edge);
     });
@@ -358,12 +389,15 @@ const UnifiedDashboard: React.FC = () => {
     });
 
     function getEdgeColor(type: string): string {
-      switch (type) {
-        case 'read': return '#38a169';
-        case 'modified': return '#d69e2e';
-        case 'created': return '#805ad5';
-        case 'buildson': return '#e53e3e';
-        default: return '#718096';
+      if (dataType === 'activity') {
+        switch (type) {
+          case 'read': return '#38a169';
+          case 'modified': return '#d69e2e';
+          case 'created': return '#805ad5';
+          default: return '#718096';
+        }
+      } else {
+        return '#e53e3e'; // Buildson color
       }
     }
     
@@ -383,14 +417,12 @@ const UnifiedDashboard: React.FC = () => {
       stats: {
         totalNodes: nodeArray.length,
         totalConnections: edges.length,
-        activityConnections: edges.filter(e => e.types.some(t => ['read', 'created', 'modified'].includes(t))).length,
-        buildsonConnections: edges.filter(e => e.types.includes('buildson')).length,
         mostActiveUser: nodeArray.length > 0 ? nodeArray.reduce((prev, current) => 
           (prev.interactions > current.interactions) ? prev : current
         ).label : 'None'
       }
     };
-  }, [filteredData, hideNames, nodeSize, edgeWidth, showDirections, showNodeLabels, showEdgeLabels, edgeSmoothing]);
+  }, [filteredData, hideNames, nodeSize, edgeWidth, showDirections, showNodeLabels, showEdgeLabels, edgeSmoothing, dataType]);
 
   // Network visualization
   useEffect(() => {
@@ -452,11 +484,6 @@ const UnifiedDashboard: React.FC = () => {
       edges: {
         smooth: edgeSmoothing ? { type: 'continuous' } : false
       },
-      groups: clusterByType ? {
-        activity: { color: { background: '#3182ce', border: '#2c5aa0' } },
-        knowledge: { color: { background: '#805ad5', border: '#6b46c1' } },
-        mixed: { color: { background: '#9f7aea', border: '#8b5cf6' } }
-      } : undefined,
       interaction: {
         tooltipDelay: 200,
         hideEdgesOnDrag: true,
@@ -485,7 +512,6 @@ const UnifiedDashboard: React.FC = () => {
             connectedEdges: connectedEdges.length,
             connections: connectedEdges.map(e => ({
               target: e.from === nodeId ? e.to : e.from,
-              types: e.types,
               weight: e.weight,
               interactions: e.interactions
             }))
@@ -525,6 +551,43 @@ const UnifiedDashboard: React.FC = () => {
     setHoveredEdgeInfo(null);
   };
 
+  // Get dynamic legend based on data type
+  const getLegendContent = () => {
+    if (dataType === 'activity') {
+      return {
+        title: "Activity Network",
+        nodeInfo: "Nodes: Username + Activity Count",
+        edgeInfo: "Edges: Interaction count between users",
+        hoverInfo: "Hover: View detailed activity tooltips",
+        nodeColors: [
+          { color: "red.500", label: "Current User" },
+          { color: "blue.500", label: "Other Users" }
+        ],
+        edgeColors: [
+          { color: "green.500", label: "Read" },
+          { color: "yellow.500", label: "Modify" },
+          { color: "purple.500", label: "Create" }
+        ]
+      };
+    } else {
+      return {
+        title: "Knowledge Building Network",
+        nodeInfo: "Nodes: Username + Buildson Count",
+        edgeInfo: "Edges: Knowledge building connections",
+        hoverInfo: "Hover: View buildson relationship details",
+        nodeColors: [
+          { color: "red.500", label: "Current User" },
+          { color: "blue.500", label: "Other Users" }
+        ],
+        edgeColors: [
+          { color: "red.500", label: "Buildson" }
+        ]
+      };
+    }
+  };
+
+  const legendContent = getLegendContent();
+
   if (loading) {
     return (
       <Center h="100vh">
@@ -546,7 +609,7 @@ const UnifiedDashboard: React.FC = () => {
             <Flex justify="space-between" align="center">
               <VStack align="start" spacing={1}>
                 <Heading size="md" color="blue.600">
-                  Knowledge Forum Network
+                  {legendContent.title}
                 </Heading>
                 <HStack spacing={4} fontSize="sm" color="gray.600">
                   <Text>
@@ -558,8 +621,8 @@ const UnifiedDashboard: React.FC = () => {
                     Connections
                   </Text>
                   <Text>
-                    <Badge colorScheme="purple" mr={1}>{networkData.stats.buildsonConnections}</Badge>
-                    Knowledge Links
+                    <Badge colorScheme="purple" mr={1}>{networkData.stats.mostActiveUser}</Badge>
+                    Most Active
                   </Text>
                 </HStack>
               </VStack>
@@ -591,7 +654,6 @@ const UnifiedDashboard: React.FC = () => {
                 zIndex={1000}
               >
                 <Text fontWeight="bold">{hoveredEdgeInfo.from} → {hoveredEdgeInfo.to}</Text>
-                <Text>Types: {hoveredEdgeInfo.types.join(', ')}</Text>
                 <Text>Interactions: {hoveredEdgeInfo.interactions.length}</Text>
                 {hoveredEdgeInfo.interactions.slice(0, 3).map((interaction, idx) => (
                   <Text key={idx} fontSize="xs" color="gray.300">
@@ -611,37 +673,28 @@ const UnifiedDashboard: React.FC = () => {
         {/* Right Sidebar */}
         <GridItem bg={sidebarBg} borderLeft="1px" borderColor={borderColor} overflowY="auto">
           <VStack spacing={4} p={4} align="stretch">
-            {/* Data Type Controls */}
+            {/* Data Type Selection */}
             <Card>
               <CardHeader pb={2}>
-                <Heading size="sm">Data Types</Heading>
+                <Heading size="sm">Data Type</Heading>
               </CardHeader>
               <CardBody pt={0}>
-                <VStack spacing={3}>
-                  <FormControl display="flex" alignItems="center" justifyContent="space-between">
-                    <VStack align="start" spacing={0}>
-                      <FormLabel mb="0" fontSize="sm" fontWeight="bold">Activity Data</FormLabel>
-                      <Text fontSize="xs" color="gray.600">Reading, creating, modifying</Text>
-                    </VStack>
-                    <Switch 
-                      isChecked={showActivityData} 
-                      onChange={(e) => setShowActivityData(e.target.checked)}
-                      colorScheme="blue"
-                    />
-                  </FormControl>
-                  
-                  <FormControl display="flex" alignItems="center" justifyContent="space-between">
-                    <VStack align="start" spacing={0}>
-                      <FormLabel mb="0" fontSize="sm" fontWeight="bold">Knowledge Building</FormLabel>
-                      <Text fontSize="xs" color="gray.600">Ideas building upon each other</Text>
-                    </VStack>
-                    <Switch 
-                      isChecked={showBuildsonData} 
-                      onChange={(e) => setShowBuildsonData(e.target.checked)}
-                      colorScheme="purple"
-                    />
-                  </FormControl>
-                </VStack>
+                <RadioGroup value={dataType} onChange={(value) => setDataType(value as 'activity' | 'knowledge')}>
+                  <Stack spacing={3}>
+                    <Radio value="activity" colorScheme="blue">
+                      <VStack align="start" spacing={0} ml={2}>
+                        <Text fontWeight="bold" fontSize="sm">Activity Analysis</Text>
+                        <Text fontSize="xs" color="gray.600">Reading, creating, modifying content</Text>
+                      </VStack>
+                    </Radio>
+                    <Radio value="knowledge" colorScheme="purple">
+                      <VStack align="start" spacing={0} ml={2}>
+                        <Text fontWeight="bold" fontSize="sm">Knowledge Building</Text>
+                        <Text fontSize="xs" color="gray.600">Ideas building upon each other</Text>
+                      </VStack>
+                    </Radio>
+                  </Stack>
+                </RadioGroup>
               </CardBody>
             </Card>
 
@@ -826,6 +879,63 @@ const UnifiedDashboard: React.FC = () => {
 
                     <Divider />
 
+                    {dataType === 'activity' && selectedNodeInfo.userActivity && (
+                      <>
+                        <VStack align="start" spacing={2} w="full">
+                          <Text fontWeight="bold" fontSize="sm">
+                            {selectedNodeInfo.label} performed {selectedNodeInfo.interactions} activities.
+                          </Text>
+                          <SimpleGrid columns={2} spacing={2} w="full" fontSize="xs">
+                            <Text>📖 Reads: {selectedNodeInfo.userActivity.reads}</Text>
+                            <Text>✏️ Creates: {selectedNodeInfo.userActivity.creates}</Text>
+                            <Text>🔄 Modifies: {selectedNodeInfo.userActivity.modifies}</Text>
+                          </SimpleGrid>
+                        </VStack>
+                        <Divider />
+                      </>
+                    )}
+
+                    {dataType === 'knowledge' && selectedNodeInfo.userActivity && (
+                      <>
+                        <VStack align="start" spacing={2} w="full">
+                          <Text fontWeight="bold" fontSize="sm">
+                            {selectedNodeInfo.label} wrote {selectedNodeInfo.userActivity.creates || 0} notes.
+                          </Text>
+                          
+                          {selectedNodeInfo.userActivity.buildsonConnections?.length > 0 && (
+                            <>
+                              <Text fontWeight="bold" fontSize="sm">
+                                {selectedNodeInfo.label} built onto {selectedNodeInfo.userActivity.buildsonConnections.length} notes:
+                              </Text>
+                              <VStack align="start" spacing={1} maxH="120px" overflowY="auto" w="full">
+                                {selectedNodeInfo.userActivity.buildsonConnections.map((conn, idx) => (
+                                  <Text key={idx} fontSize="xs">
+                                    • {conn.strength} by {conn.target}
+                                  </Text>
+                                ))}
+                              </VStack>
+                            </>
+                          )}
+
+                          {selectedNodeInfo.userActivity.builtUponBy?.length > 0 && (
+                            <>
+                              <Text fontWeight="bold" fontSize="sm">
+                                {selectedNodeInfo.userActivity.builtUponBy.length} note{selectedNodeInfo.userActivity.builtUponBy.length > 1 ? 's were' : ' was'} built onto notes written by {selectedNodeInfo.label}:
+                              </Text>
+                              <VStack align="start" spacing={1} maxH="120px" overflowY="auto" w="full">
+                                {selectedNodeInfo.userActivity.builtUponBy.map((conn, idx) => (
+                                  <Text key={idx} fontSize="xs">
+                                    • {conn.strength} by {conn.source}
+                                  </Text>
+                                ))}
+                              </VStack>
+                            </>
+                          )}
+                        </VStack>
+                        <Divider />
+                      </>
+                    )}
+
                     <SimpleGrid columns={2} spacing={2} w="full">
                       <Stat size="sm">
                         <StatLabel fontSize="xs">Total Activity</StatLabel>
@@ -836,60 +946,6 @@ const UnifiedDashboard: React.FC = () => {
                         <StatNumber fontSize="md">{selectedNodeInfo.connectedEdges}</StatNumber>
                       </Stat>
                     </SimpleGrid>
-
-                    {selectedNodeInfo.userActivity && (
-                      <>
-                        <Divider />
-                        <VStack align="start" spacing={2} w="full">
-                          <Text fontWeight="bold" fontSize="sm">Activity Breakdown</Text>
-                          <SimpleGrid columns={2} spacing={2} w="full" fontSize="xs">
-                            <Text>📖 Reads: {selectedNodeInfo.userActivity.reads}</Text>
-                            <Text>✏️ Creates: {selectedNodeInfo.userActivity.creates}</Text>
-                            <Text>🔄 Modifies: {selectedNodeInfo.userActivity.modifies}</Text>
-                            <Text>🔗 Buildons: {selectedNodeInfo.userActivity.buildons}</Text>
-                          </SimpleGrid>
-                        </VStack>
-                      </>
-                    )}
-
-                    {selectedNodeInfo.userActivity?.buildsonConnections?.length > 0 && (
-                      <>
-                        <Divider />
-                        <VStack align="start" spacing={2} w="full">
-                          <Text fontWeight="bold" fontSize="sm">Knowledge Building</Text>
-                          <VStack align="start" spacing={1} maxH="120px" overflowY="auto" w="full">
-                            {selectedNodeInfo.userActivity.buildsonConnections.map((conn, idx) => (
-                              <Box key={idx} p={2} bg="purple.50" borderRadius="md" w="full">
-                                <Text fontSize="xs" fontWeight="bold">→ {conn.target}</Text>
-                                <Text fontSize="xs" color="gray.600">{conn.title}</Text>
-                                <Badge size="sm" colorScheme="purple">Strength: {conn.strength}</Badge>
-                              </Box>
-                            ))}
-                          </VStack>
-                        </VStack>
-                      </>
-                    )}
-
-                    {selectedNodeInfo.connections?.length > 0 && (
-                      <>
-                        <Divider />
-                        <VStack align="start" spacing={2} w="full">
-                          <Text fontWeight="bold" fontSize="sm">Recent Connections</Text>
-                          <VStack align="start" spacing={1} maxH="100px" overflowY="auto" w="full">
-                            {selectedNodeInfo.connections.slice(0, 5).map((conn, idx) => (
-                              <Text key={idx} fontSize="xs">
-                                → {conn.target} ({conn.types.join(', ')})
-                              </Text>
-                            ))}
-                            {selectedNodeInfo.connections.length > 5 && (
-                              <Text fontSize="xs" color="gray.500">
-                                ...and {selectedNodeInfo.connections.length - 5} more
-                              </Text>
-                            )}
-                          </VStack>
-                        </VStack>
-                      </>
-                    )}
                   </VStack>
                 </CardBody>
               </Card>
@@ -902,46 +958,27 @@ const UnifiedDashboard: React.FC = () => {
               </CardHeader>
               <CardBody pt={0}>
                 <VStack align="start" spacing={2} fontSize="xs">
+                  <Text fontWeight="bold">{legendContent.nodeInfo}</Text>
+                  <Text fontWeight="bold">{legendContent.edgeInfo}</Text>
+                  <Text fontWeight="bold">{legendContent.hoverInfo}</Text>
+                  
+                  <Divider />
                   <Text fontWeight="bold">Node Colors:</Text>
-                  <HStack>
-                    <Box w={3} h={3} bg="red.500" borderRadius="full" />
-                    <Text>Your activity</Text>
-                  </HStack>
-                  <HStack>
-                    <Box w={3} h={3} bg="blue.500" borderRadius="full" />
-                    <Text>Activity users</Text>
-                  </HStack>
-                  <HStack>
-                    <Box w={3} h={3} bg="purple.500" borderRadius="full" />
-                    <Text>Knowledge builders</Text>
-                  </HStack>
-                  <HStack>
-                    <Box w={3} h={3} bg="purple.300" borderRadius="full" />
-                    <Text>Mixed activity</Text>
-                  </HStack>
+                  {legendContent.nodeColors.map((item, idx) => (
+                    <HStack key={idx}>
+                      <Box w={3} h={3} bg={item.color} borderRadius="full" />
+                      <Text>{item.label}</Text>
+                    </HStack>
+                  ))}
                   
                   <Divider />
                   <Text fontWeight="bold">Edge Colors:</Text>
-                  <HStack>
-                    <Box w={3} h={0.5} bg="green.500" />
-                    <Text>Read</Text>
-                  </HStack>
-                  <HStack>
-                    <Box w={3} h={0.5} bg="yellow.500" />
-                    <Text>Modify</Text>
-                  </HStack>
-                  <HStack>
-                    <Box w={3} h={0.5} bg="purple.500" />
-                    <Text>Create</Text>
-                  </HStack>
-                  <HStack>
-                    <Box w={3} h={0.5} bg="red.500" />
-                    <Text>Buildson</Text>
-                  </HStack>
-                  <HStack>
-                    <Box w={3} h={0.5} bg="gray.500" />
-                    <Text>Mixed</Text>
-                  </HStack>
+                  {legendContent.edgeColors.map((item, idx) => (
+                    <HStack key={idx}>
+                      <Box w={3} h={0.5} bg={item.color} />
+                      <Text>{item.label}</Text>
+                    </HStack>
+                  ))}
 
                   <Alert status="info" size="sm" mt={2}>
                     <AlertIcon />
