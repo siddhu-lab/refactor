@@ -1,12 +1,9 @@
 import React from 'react';
-import { ChakraProvider } from '@chakra-ui/react';
-import UnifiedDashboard from './components/UnifiedDashboard/UnifiedDashboard.tsx';
+import MainDashboard from './components/MainDashboard.tsx';
 
 function App() {
   return (
-    <ChakraProvider>
-      <UnifiedDashboard />
-    </ChakraProvider>
+    <MainDashboard />
   );
 }
 
