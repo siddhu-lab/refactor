@@ -32,12 +32,19 @@ import {
   Alert,
   AlertIcon,
   AlertDescription,
-  RadioGroup,
-  Radio,
-  Stack,
-  Flex
+  Flex,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  TableContainer,
+  Input,
+  Collapse,
+  useDisclosure
 } from '@chakra-ui/react';
-import { InfoIcon, SettingsIcon } from '@chakra-ui/icons';
+import { InfoIcon, SettingsIcon, ViewIcon, ViewOffIcon, ChevronDownIcon, ChevronUpIcon } from '@chakra-ui/icons';
 import { Network } from 'vis-network';
 import dashboardContext from '../../context/dashboard.js';
 
@@ -58,9 +65,6 @@ const UnifiedDashboard: React.FC = () => {
   const [filteredData, setFilteredData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [network, setNetwork] = useState<Network | null>(null);
-  
-  // Data Type Selection (only one at a time)
-  const [dataType, setDataType] = useState<'activity' | 'knowledge'>('activity');
   
   // Filter State
   const [selectedView, setSelectedView] = useState('all');
@@ -86,10 +90,18 @@ const UnifiedDashboard: React.FC = () => {
   const [selectedNodeInfo, setSelectedNodeInfo] = useState<any>(null);
   const [hoveredEdgeInfo, setHoveredEdgeInfo] = useState<any>(null);
 
+  // Table visibility controls
+  const { isOpen: showUserStats, onToggle: toggleUserStats } = useDisclosure();
+  const { isOpen: showActivityRecords, onToggle: toggleActivityRecords } = useDisclosure();
+  
+  // Table controls
+  const [searchTerm, setSearchTerm] = useState('');
+  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
   const isManager = role === 'manager';
   const currentUserName = `${me?.firstName} ${me?.lastName}`;
 
-  // Enhanced dummy data
+  // Enhanced dummy data - Combined activity and knowledge building data
   const dummyData = [
     // Activity data
     {
@@ -192,16 +204,9 @@ const UnifiedDashboard: React.FC = () => {
     }, 500);
   }, []);
 
-  // Apply filters to data based on selected data type
+  // Apply filters to data
   const applyFilters = (data: any[]) => {
     let filtered = data;
-
-    // Filter by data type first
-    if (dataType === 'activity') {
-      filtered = filtered.filter(d => ['read', 'created', 'modified'].includes(d.type));
-    } else {
-      filtered = filtered.filter(d => d.type === 'buildson');
-    }
 
     // View filter
     if (selectedView !== 'all') {
@@ -243,15 +248,15 @@ const UnifiedDashboard: React.FC = () => {
     const filtered = applyFilters(rawData);
     setFilteredData(filtered);
     setSelectedNodeInfo(null); // Clear selection when data changes
-  }, [rawData, dataType, selectedView, selectedGroup, selectedAuthor, dateRange]);
+  }, [rawData, selectedView, selectedGroup, selectedAuthor, dateRange]);
 
-  // Process network data based on data type
+  // Process unified network data combining both activity and knowledge building
   const networkData = useMemo(() => {
     const nodes = new Map();
     const edges: any[] = [];
     const edgeMap = new Map();
     
-    // Build user activity summary
+    // Build comprehensive user activity summary
     const userActivities = new Map();
     
     filteredData.forEach((item: any) => {
@@ -263,11 +268,13 @@ const UnifiedDashboard: React.FC = () => {
         userActivities.set(fromName, {
           reads: 0, creates: 0, modifies: 0, buildons: 0,
           activities: [], buildsonConnections: [], builtUponBy: []
+          totalActivity: 0, sharedPieces: new Set()
         });
       }
       
       const userActivity = userActivities.get(fromName);
       userActivity.activities.push(item);
+      userActivity.totalActivity++;
       
       if (item.type === 'read') userActivity.reads++;
       else if (item.type === 'created') userActivity.creates++;
@@ -286,6 +293,7 @@ const UnifiedDashboard: React.FC = () => {
           userActivities.set(toName, {
             reads: 0, creates: 0, modifies: 0, buildons: 0,
             activities: [], buildsonConnections: [], builtUponBy: []
+            totalActivity: 0, sharedPieces: new Set()
           });
         }
         userActivities.get(toName).builtUponBy.push({
@@ -294,6 +302,14 @@ const UnifiedDashboard: React.FC = () => {
           title: item.title,
           date: item.date
         });
+      }
+      
+      // Track shared content pieces
+      if (item.ID) {
+        userActivity.sharedPieces.add(item.ID);
+        if (toName !== fromName && userActivities.has(toName)) {
+          userActivities.get(toName).sharedPieces.add(item.ID);
+        }
       }
       
       // Create nodes
@@ -337,15 +353,18 @@ const UnifiedDashboard: React.FC = () => {
       
       // Create edges
       if (fromName !== toName && item.to) {
-        const edgeKey = dataType === 'activity' ? 
-          `${fromName}-${toName}` : // For activity, direction matters less
-          `${fromName}-${toName}`; // For buildson, direction is important
+        const edgeKey = `${fromName}-${toName}`;
         
         if (edgeMap.has(edgeKey)) {
           const existingEdge = edgeMap.get(edgeKey);
           existingEdge.weight += 1;
           existingEdge.width = Math.max(edgeWidth, existingEdge.weight * edgeWidth);
           existingEdge.interactions.push(item);
+          
+          // Track shared pieces for this edge
+          if (item.ID) {
+            existingEdge.sharedPieces.add(item.ID);
+          }
         } else {
           const newEdge = {
             id: item.id,
@@ -357,10 +376,11 @@ const UnifiedDashboard: React.FC = () => {
             arrows: showDirections ? 'to' : undefined,
             smooth: edgeSmoothing ? { type: 'continuous' } : false,
             interactions: [item],
-            label: showEdgeLabels ? (dataType === 'activity' ? `${item.type}` : `builds on`) : undefined,
+            label: showEdgeLabels ? `${item.type}` : undefined,
             font: showEdgeLabels ? { size: 10, color: '#666666' } : undefined,
             title: getEdgeTitle(item, fromName, toName),
-            shadow: { enabled: true, color: 'rgba(0,0,0,0.1)', size: 3, x: 1, y: 1 }
+            shadow: { enabled: true, color: 'rgba(0,0,0,0.1)', size: 3, x: 1, y: 1 },
+            sharedPieces: new Set(item.ID ? [item.ID] : [])
           };
           
           edgeMap.set(edgeKey, newEdge);
@@ -371,12 +391,9 @@ const UnifiedDashboard: React.FC = () => {
     // Update edge titles for combined edges
     edgeMap.forEach((edge) => {
       if (edge.interactions.length > 1) {
-        if (dataType === 'activity') {
-          const types = [...new Set(edge.interactions.map(i => i.type))];
-          edge.title = `${edge.from} → ${edge.to}\n${edge.interactions.length} interactions\nTypes: ${types.join(', ')}`;
-        } else {
-          edge.title = `${edge.from} built on ${edge.to}'s work\n${edge.interactions.length} times`;
-        }
+        const types = [...new Set(edge.interactions.map(i => i.type))];
+        const sharedCount = edge.sharedPieces.size;
+        edge.title = `${edge.from} → ${edge.to}\n${edge.interactions.length} interactions\nTypes: ${types.join(', ')}\nShared pieces: ${sharedCount}`;
       }
       edges.push(edge);
     });
@@ -385,20 +402,18 @@ const UnifiedDashboard: React.FC = () => {
     nodes.forEach((node, nodeName) => {
       const activity = userActivities.get(nodeName);
       if (activity) {
+        activity.sharedPiecesCount = activity.sharedPieces.size;
         node.userActivity = activity;
       }
     });
 
     function getEdgeColor(type: string): string {
-      if (dataType === 'activity') {
-        switch (type) {
-          case 'read': return '#38a169';
-          case 'modified': return '#d69e2e';
-          case 'created': return '#805ad5';
-          default: return '#718096';
-        }
-      } else {
-        return '#e53e3e'; // Buildson color
+      switch (type) {
+        case 'read': return '#38a169';
+        case 'modified': return '#d69e2e';
+        case 'created': return '#805ad5';
+        case 'buildson': return '#e53e3e';
+        default: return '#718096';
       }
     }
     
@@ -418,12 +433,14 @@ const UnifiedDashboard: React.FC = () => {
       stats: {
         totalNodes: nodeArray.length,
         totalConnections: edges.length,
+        totalActivities: filteredData.length,
+        totalBuildsons: filteredData.filter(d => d.type === 'buildson').length,
         mostActiveUser: nodeArray.length > 0 ? nodeArray.reduce((prev, current) => 
           (prev.interactions > current.interactions) ? prev : current
         ).label : 'None'
       }
     };
-  }, [filteredData, hideNames, nodeSize, edgeWidth, showDirections, showNodeLabels, showEdgeLabels, edgeSmoothing, dataType]);
+  }, [filteredData, hideNames, nodeSize, edgeWidth, showDirections, showNodeLabels, showEdgeLabels, edgeSmoothing]);
 
   // Network visualization
   useEffect(() => {
@@ -552,42 +569,71 @@ const UnifiedDashboard: React.FC = () => {
     setHoveredEdgeInfo(null);
   };
 
-  // Get dynamic legend based on data type
-  const getLegendContent = () => {
-    if (dataType === 'activity') {
-      return {
-        title: "Activity Network",
-        nodeInfo: "Nodes: Username + Activity Count",
-        edgeInfo: "Edges: Interaction count between users",
-        hoverInfo: "Hover: View detailed activity tooltips",
-        nodeColors: [
-          { color: "red.500", label: "Current User" },
-          { color: "blue.500", label: "Other Users" }
-        ],
-        edgeColors: [
-          { color: "green.500", label: "Read" },
-          { color: "yellow.500", label: "Modify" },
-          { color: "purple.500", label: "Create" }
-        ]
-      };
-    } else {
-      return {
-        title: "Knowledge Building Network",
-        nodeInfo: "Nodes: Username + Buildson Count",
-        edgeInfo: "Edges: Knowledge building connections",
-        hoverInfo: "Hover: View buildson relationship details",
-        nodeColors: [
-          { color: "red.500", label: "Current User" },
-          { color: "blue.500", label: "Other Users" }
-        ],
-        edgeColors: [
-          { color: "red.500", label: "Buildson" }
-        ]
-      };
-    }
+  // Unified legend content
+  const legendContent = {
+    title: "Unified Knowledge Network",
+    nodeInfo: "Nodes: Username + Total Activity",
+    edgeInfo: "Edges: All interactions between users",
+    hoverInfo: "Click nodes for details, hover edges for shared content info",
+    nodeColors: [
+      { color: "red.500", label: "Current User" },
+      { color: "blue.500", label: "Other Users" }
+    ],
+    edgeColors: [
+      { color: "green.500", label: "Read" },
+      { color: "yellow.500", label: "Modify" },
+      { color: "purple.500", label: "Create" },
+      { color: "red.500", label: "Buildson" }
+    ]
   };
 
-  const legendContent = getLegendContent();
+  // User statistics data for table
+  const userStatsData = useMemo(() => {
+    const stats = new Map();
+    
+    filteredData.forEach(item => {
+      const userName = hideNames && item.fromId !== community.author.id ? item.fromPseudo : item.from;
+      
+      if (!stats.has(userName)) {
+        stats.set(userName, {
+          name: userName,
+          reads: 0,
+          creates: 0,
+          modifies: 0,
+          buildons: 0,
+          total: 0
+        });
+      }
+      
+      const userStat = stats.get(userName);
+      userStat[item.type] = (userStat[item.type] || 0) + 1;
+      userStat.total += 1;
+    });
+    
+    return Array.from(stats.values()).sort((a, b) => b.total - a.total);
+  }, [filteredData, hideNames, community.author.id]);
+
+  // Activity records data for table
+  const activityRecordsData = useMemo(() => {
+    return filteredData
+      .filter(item => {
+        if (!searchTerm) return true;
+        const userName = hideNames && item.fromId !== community.author.id ? item.fromPseudo : item.from;
+        return item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               item.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               userName.toLowerCase().includes(searchTerm.toLowerCase());
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [filteredData, searchTerm, hideNames, community.author.id]);
+
+  // Pagination for activity records
+  const paginatedRecords = useMemo(() => {
+    const startIndex = (currentPage - 1) * entriesPerPage;
+    const endIndex = startIndex + entriesPerPage;
+    return activityRecordsData.slice(startIndex, endIndex);
+  }, [activityRecordsData, currentPage, entriesPerPage]);
+
+  const totalPages = Math.ceil(activityRecordsData.length / entriesPerPage);
 
   if (loading) {
     return (
@@ -620,6 +666,14 @@ const UnifiedDashboard: React.FC = () => {
                   <Text>
                     <Badge colorScheme="green" mr={1}>{networkData.stats.totalConnections}</Badge>
                     Connections
+                  </Text>
+                  <Text>
+                    <Badge colorScheme="orange" mr={1}>{networkData.stats.totalActivities}</Badge>
+                    Activities
+                  </Text>
+                  <Text>
+                    <Badge colorScheme="red" mr={1}>{networkData.stats.totalBuildsons}</Badge>
+                    Buildsons
                   </Text>
                   <Text>
                     <Badge colorScheme="purple" mr={1}>{networkData.stats.mostActiveUser}</Badge>
@@ -656,6 +710,7 @@ const UnifiedDashboard: React.FC = () => {
               >
                 <Text fontWeight="bold">{hoveredEdgeInfo.from} → {hoveredEdgeInfo.to}</Text>
                 <Text>Interactions: {hoveredEdgeInfo.interactions.length}</Text>
+                <Text>Shared pieces: {hoveredEdgeInfo.sharedPieces?.size || 0}</Text>
                 {hoveredEdgeInfo.interactions.slice(0, 3).map((interaction, idx) => (
                   <Text key={idx} fontSize="xs" color="gray.300">
                     • {interaction.type}: {interaction.title}
@@ -674,28 +729,36 @@ const UnifiedDashboard: React.FC = () => {
         {/* Right Sidebar */}
         <GridItem bg={sidebarBg} borderLeft="1px" borderColor={borderColor} overflowY="auto">
           <VStack spacing={4} p={4} align="stretch">
-            {/* Data Type Selection */}
+            {/* Table Visibility Controls */}
             <Card>
               <CardHeader pb={2}>
-                <Heading size="sm">Data Type</Heading>
+                <Heading size="sm">Data Tables</Heading>
               </CardHeader>
               <CardBody pt={0}>
-                <RadioGroup value={dataType} onChange={(value) => setDataType(value as 'activity' | 'knowledge')}>
-                  <Stack spacing={3}>
-                    <Radio value="activity" colorScheme="blue">
-                      <VStack align="start" spacing={0} ml={2}>
-                        <Text fontWeight="bold" fontSize="sm">Activity Analysis</Text>
-                        <Text fontSize="xs" color="gray.600">Reading, creating, modifying content</Text>
-                      </VStack>
-                    </Radio>
-                    <Radio value="knowledge" colorScheme="purple">
-                      <VStack align="start" spacing={0} ml={2}>
-                        <Text fontWeight="bold" fontSize="sm">Knowledge Building</Text>
-                        <Text fontSize="xs" color="gray.600">Ideas building upon each other</Text>
-                      </VStack>
-                    </Radio>
-                  </Stack>
-                </RadioGroup>
+                <VStack spacing={3}>
+                  <HStack justify="space-between" w="full">
+                    <Text fontSize="sm">User Statistics</Text>
+                    <Button
+                      size="xs"
+                      leftIcon={showUserStats ? <ViewOffIcon /> : <ViewIcon />}
+                      onClick={toggleUserStats}
+                      variant="outline"
+                    >
+                      {showUserStats ? 'Hide' : 'Show'}
+                    </Button>
+                  </HStack>
+                  <HStack justify="space-between" w="full">
+                    <Text fontSize="sm">Activity Records</Text>
+                    <Button
+                      size="xs"
+                      leftIcon={showActivityRecords ? <ViewOffIcon /> : <ViewIcon />}
+                      onClick={toggleActivityRecords}
+                      variant="outline"
+                    >
+                      {showActivityRecords ? 'Hide' : 'Show'}
+                    </Button>
+                  </HStack>
+                </VStack>
               </CardBody>
             </Card>
 
@@ -880,60 +943,53 @@ const UnifiedDashboard: React.FC = () => {
 
                     <Divider />
 
-                    {dataType === 'activity' && selectedNodeInfo.userActivity && (
+                    {selectedNodeInfo.userActivity && (
                       <>
                         <VStack align="start" spacing={2} w="full">
                           <Text fontWeight="bold" fontSize="sm">
-                            {selectedNodeInfo.label} performed {selectedNodeInfo.interactions} activities.
+                            {selectedNodeInfo.label} has {selectedNodeInfo.userActivity.totalActivity} total activities.
                           </Text>
                           <SimpleGrid columns={2} spacing={2} w="full" fontSize="xs">
                             <Text>📖 Reads: {selectedNodeInfo.userActivity.reads}</Text>
                             <Text>✏️ Creates: {selectedNodeInfo.userActivity.creates}</Text>
                             <Text>🔄 Modifies: {selectedNodeInfo.userActivity.modifies}</Text>
+                            <Text>🔗 Buildsons: {selectedNodeInfo.userActivity.buildons}</Text>
                           </SimpleGrid>
-                        </VStack>
-                        <Divider />
-                      </>
-                    )}
-
-                    {dataType === 'knowledge' && selectedNodeInfo.userActivity && (
-                      <>
-                        <VStack align="start" spacing={2} w="full">
-                          <Text fontWeight="bold" fontSize="sm">
-                            {selectedNodeInfo.label} wrote {selectedNodeInfo.userActivity.creates || 0} notes.
+                          <Text fontSize="xs" color="gray.600">
+                            📄 Shared {selectedNodeInfo.userActivity.sharedPiecesCount} content pieces
                           </Text>
-                          
-                          {selectedNodeInfo.userActivity.buildsonConnections?.length > 0 && (
-                            <>
-                              <Text fontWeight="bold" fontSize="sm">
-                                {selectedNodeInfo.label} built onto {selectedNodeInfo.userActivity.buildsonConnections.length} notes:
-                              </Text>
-                              <VStack align="start" spacing={1} maxH="120px" overflowY="auto" w="full">
-                                {selectedNodeInfo.userActivity.buildsonConnections.map((conn, idx) => (
-                                  <Text key={idx} fontSize="xs">
-                                    • {conn.strength} by {conn.target}
-                                  </Text>
-                                ))}
-                              </VStack>
-                            </>
-                          )}
-
-                          {selectedNodeInfo.userActivity.builtUponBy?.length > 0 && (
-                            <>
-                              <Text fontWeight="bold" fontSize="sm">
-                                {selectedNodeInfo.userActivity.builtUponBy.length} note{selectedNodeInfo.userActivity.builtUponBy.length > 1 ? 's were' : ' was'} built onto notes written by {selectedNodeInfo.label}:
-                              </Text>
-                              <VStack align="start" spacing={1} maxH="120px" overflowY="auto" w="full">
-                                {selectedNodeInfo.userActivity.builtUponBy.map((conn, idx) => (
-                                  <Text key={idx} fontSize="xs">
-                                    • {conn.strength} by {conn.source}
-                                  </Text>
-                                ))}
-                              </VStack>
-                            </>
-                          )}
                         </VStack>
                         <Divider />
+                        
+                        {selectedNodeInfo.userActivity.buildsonConnections?.length > 0 && (
+                          <>
+                            <Text fontWeight="bold" fontSize="sm">
+                              Built onto {selectedNodeInfo.userActivity.buildsonConnections.length} notes:
+                            </Text>
+                            <VStack align="start" spacing={1} maxH="100px" overflowY="auto" w="full">
+                              {selectedNodeInfo.userActivity.buildsonConnections.map((conn, idx) => (
+                                <Text key={idx} fontSize="xs">
+                                  • Strength {conn.strength} by {conn.target}
+                                </Text>
+                              ))}
+                            </VStack>
+                          </>
+                        )}
+
+                        {selectedNodeInfo.userActivity.builtUponBy?.length > 0 && (
+                          <>
+                            <Text fontWeight="bold" fontSize="sm">
+                              {selectedNodeInfo.userActivity.builtUponBy.length} note{selectedNodeInfo.userActivity.builtUponBy.length > 1 ? 's were' : ' was'} built upon:
+                            </Text>
+                            <VStack align="start" spacing={1} maxH="100px" overflowY="auto" w="full">
+                              {selectedNodeInfo.userActivity.builtUponBy.map((conn, idx) => (
+                                <Text key={idx} fontSize="xs">
+                                  • Strength {conn.strength} by {conn.source}
+                                </Text>
+                              ))}
+                            </VStack>
+                          </>
+                        )}
                       </>
                     )}
 
@@ -984,7 +1040,7 @@ const UnifiedDashboard: React.FC = () => {
                   <Alert status="info" size="sm" mt={2}>
                     <AlertIcon />
                     <AlertDescription fontSize="xs">
-                      Click nodes for details. Hover edges for activity info. Larger nodes = more activity.
+                      Click nodes for complete activity & buildson data. Hover edges for shared content info.
                     </AlertDescription>
                   </Alert>
                 </VStack>
@@ -993,6 +1049,140 @@ const UnifiedDashboard: React.FC = () => {
           </VStack>
         </GridItem>
       </Grid>
+      
+      {/* User Statistics Table */}
+      <Collapse in={showUserStats} animateOpacity>
+        <Box position="fixed" bottom={4} left={4} right="420px" bg={bgColor} 
+             borderRadius="md" shadow="lg" border="1px" borderColor={borderColor} 
+             maxH="300px" overflowY="auto" zIndex={1000}>
+          <Box p={4} borderBottom="1px" borderColor={borderColor}>
+            <HStack justify="space-between">
+              <Heading size="sm">User Activity Statistics</Heading>
+              <Button size="xs" onClick={toggleUserStats}>
+                <ChevronUpIcon />
+              </Button>
+            </HStack>
+          </Box>
+          <TableContainer>
+            <Table size="sm">
+              <Thead>
+                <Tr>
+                  <Th>User</Th>
+                  <Th isNumeric>Reads</Th>
+                  <Th isNumeric>Creates</Th>
+                  <Th isNumeric>Modifies</Th>
+                  <Th isNumeric>Buildsons</Th>
+                  <Th isNumeric>Total</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {userStatsData.map((user, idx) => (
+                  <Tr key={idx}>
+                    <Td fontWeight="medium">{user.name}</Td>
+                    <Td isNumeric>{user.reads || 0}</Td>
+                    <Td isNumeric>{user.creates || 0}</Td>
+                    <Td isNumeric>{user.modifies || 0}</Td>
+                    <Td isNumeric>{user.buildons || 0}</Td>
+                    <Td isNumeric fontWeight="bold">{user.total}</Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </TableContainer>
+        </Box>
+      </Collapse>
+      
+      {/* Activity Records Table */}
+      <Collapse in={showActivityRecords} animateOpacity>
+        <Box position="fixed" bottom={4} left={4} right="420px" bg={bgColor} 
+             borderRadius="md" shadow="lg" border="1px" borderColor={borderColor} 
+             maxH="400px" overflowY="auto" zIndex={1000}>
+          <Box p={4} borderBottom="1px" borderColor={borderColor}>
+            <HStack justify="space-between" mb={3}>
+              <Heading size="sm">Activity Records</Heading>
+              <Button size="xs" onClick={toggleActivityRecords}>
+                <ChevronUpIcon />
+              </Button>
+            </HStack>
+            <HStack spacing={3}>
+              <Input
+                size="sm"
+                placeholder="Search records..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                maxW="200px"
+              />
+              <Select size="sm" value={entriesPerPage} onChange={(e) => setEntriesPerPage(Number(e.target.value))} maxW="100px">
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+              </Select>
+              <Text fontSize="xs" color="gray.600">
+                {((currentPage - 1) * entriesPerPage) + 1}-{Math.min(currentPage * entriesPerPage, activityRecordsData.length)} of {activityRecordsData.length}
+              </Text>
+            </HStack>
+          </Box>
+          <TableContainer>
+            <Table size="sm">
+              <Thead>
+                <Tr>
+                  <Th>Date</Th>
+                  <Th>Type</Th>
+                  <Th>User</Th>
+                  <Th>Title</Th>
+                  <Th>View</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {paginatedRecords.map((record, idx) => {
+                  const userName = hideNames && record.fromId !== community.author.id ? record.fromPseudo : record.from;
+                  return (
+                    <Tr key={idx}>
+                      <Td fontSize="xs">{record.date.toLocaleDateString()}</Td>
+                      <Td>
+                        <Badge 
+                          size="sm" 
+                          colorScheme={
+                            record.type === 'read' ? 'green' : 
+                            record.type === 'created' ? 'purple' : 
+                            record.type === 'modified' ? 'yellow' : 'red'
+                          }
+                        >
+                          {record.type}
+                        </Badge>
+                      </Td>
+                      <Td fontSize="xs">{userName}</Td>
+                      <Td fontSize="xs" maxW="200px" isTruncated>{record.title}</Td>
+                      <Td fontSize="xs">{record.view}</Td>
+                    </Tr>
+                  );
+                })}
+              </Tbody>
+            </Table>
+          </TableContainer>
+          {totalPages > 1 && (
+            <Box p={3} borderTop="1px" borderColor={borderColor}>
+              <HStack justify="center" spacing={2}>
+                <Button 
+                  size="xs" 
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  isDisabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <Text fontSize="xs">Page {currentPage} of {totalPages}</Text>
+                <Button 
+                  size="xs" 
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  isDisabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </HStack>
+            </Box>
+          )}
+        </Box>
+      </Collapse>
     </Box>
   );
 };
