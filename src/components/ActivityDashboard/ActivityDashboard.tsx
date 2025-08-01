@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useRef, useMemo } from 'react';
+import React, { useContext, useEffect, useState, useMemo } from 'react';
 import {
   Box,
   Container,
@@ -20,7 +20,6 @@ import {
   StatArrow,
   useColorModeValue,
   Avatar,
-  AvatarGroup,
   Progress,
   Divider,
   Icon,
@@ -30,13 +29,7 @@ import {
   InputGroup,
   InputLeftElement,
   Select,
-  Switch,
-  FormControl,
-  FormLabel,
   Tooltip,
-  Menu,
-  MenuButton,
-  MenuList,
   MenuItem,
   IconButton,
   Wrap,
@@ -79,7 +72,6 @@ import {
   FiRefreshCw
 } from 'react-icons/fi';
 import dashboardContext from '../../context/dashboard.js';
-import { initializeCharts } from './chartUtils';
 import StatisticsTable from './StatisticsTable';
 import MainDataTable from './MainDataTable/MainDataTable';
 import ViewsDropdown from './ViewsDropdown';
@@ -188,7 +180,6 @@ const ActivityDashboard: React.FC = () => {
   const [hideManagers, setHideManagers] = useState(false);
   const [selectedView, setSelectedView] = useState('');
   const [showTimeline, setShowTimeline] = useState(true);
-  const [chartsInitialized, setChartsInitialized] = useState(false);
   const toast = useToast();
 
   const bgColor = useColorModeValue('gray.50', 'gray.900');
@@ -294,22 +285,6 @@ const ActivityDashboard: React.FC = () => {
       .sort((a, b) => b.total - a.total)
       .slice(0, 10);
   }, [filteredData, hideNames, currentAuthor._id]);
-
-  // Initialize charts
-  useEffect(() => {
-    if (processedData.length > 0 && !chartsInitialized) {
-      try {
-        const { statsData, labelsData, viewsGroupData } = initializeCharts(
-          processedData, 
-          hideNames, 
-          currentAuthor
-        );
-        setChartsInitialized(true);
-      } catch (error) {
-        console.error('Error initializing charts:', error);
-      }
-    }
-  }, [processedData, hideNames, currentAuthor, chartsInitialized]);
 
   // Get views data for dropdown
   const viewsData = useMemo(() => {
