@@ -26,11 +26,6 @@ import {
   Icon,
   SimpleGrid,
   useToast,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
   Input,
   InputGroup,
   InputLeftElement,
@@ -46,13 +41,6 @@ import {
   IconButton,
   Wrap,
   WrapItem,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  TableContainer,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -61,7 +49,9 @@ import {
   ModalCloseButton,
   useDisclosure,
   Skeleton,
-  SkeletonText
+  SkeletonText,
+  Collapse,
+  useBreakpointValue
 } from '@chakra-ui/react';
 import {
   SearchIcon,
@@ -71,6 +61,7 @@ import {
   SettingsIcon,
   InfoIcon,
   ChevronDownIcon,
+  ChevronUpIcon,
   ExternalLinkIcon,
   TimeIcon,
   EditIcon,
@@ -88,6 +79,12 @@ import {
   FiRefreshCw
 } from 'react-icons/fi';
 import dashboardContext from '../../context/dashboard.js';
+import { initializeCharts } from './chartUtils';
+import StatisticsTable from './StatisticsTable';
+import MainDataTable from './MainDataTable/MainDataTable';
+import ViewsDropdown from './ViewsDropdown';
+import './ActivityDashboard.css';
+import './dc.css';
 
 // Dummy data
 const dummySocialInteractions = [
@@ -189,6 +186,10 @@ const ActivityDashboard: React.FC = () => {
   const [selectedType, setSelectedType] = useState('all');
   const [timeRange, setTimeRange] = useState('7');
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const [hideManagers, setHideManagers] = useState(false);
+  const [selectedView, setSelectedView] = useState('');
+  const [showTimeline, setShowTimeline] = useState(true);
+  const [chartsInitialized, setChartsInitialized] = useState(false);
   const toast = useToast();
 
   const bgColor = useColorModeValue('gray.50', 'gray.900');
@@ -196,6 +197,7 @@ const ActivityDashboard: React.FC = () => {
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const textColor = useColorModeValue('gray.800', 'white');
   const mutedColor = useColorModeValue('gray.600', 'gray.400');
+  const isMobile = useBreakpointValue({ base: true, md: false });
 
   const isManager = loggedInPersonRole === 'manager';
   const currentAuthor = { 
@@ -207,9 +209,16 @@ const ActivityDashboard: React.FC = () => {
 
   // Process data
   const processedData = useMemo(() => {
-    return dummySocialInteractions.map((d) => ({
+    return dummySocialInteractions.map((d, index) => ({
       ...d,
-      date: new Date(parseInt(d.when.toString()))
+      date: new Date(parseInt(d.when.toString())),
+      day: new Date(parseInt(d.when.toString())),
+      year: new Date(parseInt(d.when.toString())),
+      month: new Date(parseInt(d.when.toString())),
+      value: 1,
+      read: d.type === 'read' ? 1 : 0,
+      modified: d.type === 'modified' ? 1 : 0,
+      created: d.type === 'created' ? 1 : 0
     }));
   }, []);
 
@@ -287,6 +296,43 @@ const ActivityDashboard: React.FC = () => {
       .slice(0, 10);
   }, [filteredData, hideNames, currentAuthor._id]);
 
+  // Initialize charts
+  useEffect(() => {
+    if (processedData.length > 0 && !chartsInitialized) {
+      try {
+        const { statsData, labelsData, viewsGroupData } = initializeCharts(
+          processedData, 
+          hideNames, 
+          currentAuthor
+        );
+        setChartsInitialized(true);
+      } catch (error) {
+        console.error('Error initializing charts:', error);
+      }
+    }
+  }, [processedData, hideNames, currentAuthor, chartsInitialized]);
+
+  // Get views data for dropdown
+  const viewsData = useMemo(() => {
+    const viewCounts = filteredData.reduce((acc, item) => {
+      const view = item.view || 'Unknown';
+      acc[view] = (acc[view] || 0) + 1;
+      return acc;
+    }, {} as { [key: string]: number });
+
+    return Object.entries(viewCounts).map(([key, value]) => ({ key, value }));
+  }, [filteredData]);
+
+  const handleViewSelect = (viewKey: string) => {
+    setSelectedView(viewKey);
+    setSelectedType('all');
+    setSearchTerm('');
+  };
+
+  const toggleManagers = () => {
+    setHideManagers(!hideManagers);
+  };
+
   const getActionColor = (type: string) => {
     switch (type) {
       case 'read': return 'blue';
@@ -332,7 +378,7 @@ const ActivityDashboard: React.FC = () => {
   };
 
   return (
-    <Box bg={bgColor} p={6} overflowY="auto" maxH="100vh">
+    <Box bg={bgColor} p={6} overflowY="auto" h="100%">
       <Container maxW="container.xl">
         <VStack spacing={8} align="stretch">
           {/* Header */}
@@ -447,8 +493,114 @@ const ActivityDashboard: React.FC = () => {
             </SimpleGrid>
           </Box>
 
+          {/* Charts Section */}
+          <Card bg={cardBg} shadow="lg" borderRadius="xl">
+            <CardBody>
+              <Flex justify="space-between" align="center" mb={6}>
+                <Heading size="md" color={textColor}>Interactive Charts</Heading>
+                <Button
+                  leftIcon={showTimeline ? <ChevronUpIcon /> : <ChevronDownIcon />}
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowTimeline(!showTimeline)}
+                >
+                  {showTimeline ? 'Hide' : 'Show'} Charts
+                </Button>
+              </Flex>
+              
+              <Collapse in={showTimeline}>
+                <VStack spacing={6} align="stretch">
+                  {/* Dashboard Grid */}
+                  <Grid templateColumns={{ base: "1fr", lg: "250px 200px 1fr" }} gap={6}>
+                    {/* Authors Chart */}
+                    <Card variant="outline" borderRadius="lg">
+                      <CardBody>
+                        <Heading size="sm" mb={4} color={textColor}>Authors</Heading>
+                        <Box id="author-chart" minH="200px" />
+                      </CardBody>
+                    </Card>
+
+                    {/* Type Chart */}
+                    <Card variant="outline" borderRadius="lg">
+                      <CardBody>
+                        <Heading size="sm" mb={4} color={textColor}>Activity Types</Heading>
+                        <Box id="type-chart" minH="200px" />
+                      </CardBody>
+                    </Card>
+
+                    {/* Views Dropdown */}
+                    <Card variant="outline" borderRadius="lg">
+                      <CardBody>
+                        <Heading size="sm" mb={4} color={textColor}>Views Filter</Heading>
+                        <ViewsDropdown
+                          views={viewsData}
+                          onViewSelect={handleViewSelect}
+                          selectedView={selectedView}
+                        />
+                      </CardBody>
+                    </Card>
+                  </Grid>
+
+                  {/* Data Count */}
+                  <Card bg="green.50" borderColor="green.200" variant="outline" borderRadius="lg">
+                    <CardBody>
+                      <HStack justify="space-between" align="center">
+                        <Box className="dc-data-count" color="green.700" fontWeight="medium" />
+                        <Button
+                          size="sm"
+                          colorScheme="green"
+                          variant="outline"
+                          onClick={() => window.dc?.filterAll?.(); window.dc?.renderAll?.()}
+                        >
+                          Reset All Filters
+                        </Button>
+                      </HStack>
+                    </CardBody>
+                  </Card>
+
+                  {/* Timeline Charts */}
+                  <Card variant="outline" borderRadius="lg">
+                    <CardBody>
+                      <Heading size="sm" mb={4} color={textColor}>Activity Timeline</Heading>
+                      <VStack spacing={4}>
+                        <Box id="line-chart" w="100%" minH="200px" />
+                        <Box id="range-chart" w="100%" minH="60px" />
+                      </VStack>
+                    </CardBody>
+                  </Card>
+                </VStack>
+              </Collapse>
+            </CardBody>
+          </Card>
+
+          {/* Statistics Table */}
+          <StatisticsTable
+            data={[]}
+            originalData={filteredData}
+            members={members}
+            labels={{}}
+            hideManagers={hideManagers}
+            hideNames={hideNames}
+            selectedView={selectedView}
+            currentAuthor={currentAuthor}
+            isManager={isManager}
+            toggleManagers={toggleManagers}
+          />
+
           {/* Main Content */}
-          <Grid templateColumns={{ base: "1fr", lg: "1fr 350px" }} gap={8}>
+          <Grid templateColumns={{ base: "1fr", lg: "2fr 1fr" }} gap={8}>
+            <GridItem>
+              {/* Main Data Table */}
+              <MainDataTable
+                data={filteredData}
+                labels={{}}
+                hideNames={hideNames}
+                currentAuthor={currentAuthor}
+                baseURL={baseURL}
+              />
+            </GridItem>
+
+            {/* Sidebar */}
             <GridItem>
               <VStack spacing={6} align="stretch">
                 {/* Filters */}
@@ -463,7 +615,7 @@ const ActivityDashboard: React.FC = () => {
                           variant="ghost"
                           onClick={() => {
                             setSearchTerm('');
-                            setSelectedView('all');
+                            setSelectedView('');
                             setSelectedType('all');
                             setTimeRange('7');
                           }}
@@ -472,7 +624,7 @@ const ActivityDashboard: React.FC = () => {
                         </Button>
                       </Flex>
                       
-                      <SimpleGrid columns={{ base: 1, md: 4 }} spacing={4}>
+                      <VStack spacing={4} align="stretch">
                         <InputGroup>
                           <InputLeftElement>
                             <SearchIcon color={mutedColor} />
@@ -485,18 +637,6 @@ const ActivityDashboard: React.FC = () => {
                             borderColor={borderColor}
                           />
                         </InputGroup>
-
-                        <Select
-                          value={selectedView}
-                          onChange={(e) => setSelectedView(e.target.value)}
-                          bg="white"
-                          borderColor={borderColor}
-                        >
-                          <option value="all">All Views</option>
-                          {uniqueViews.map(view => (
-                            <option key={view} value={view}>{view}</option>
-                          ))}
-                        </Select>
 
                         <Select
                           value={selectedType}
@@ -522,97 +662,11 @@ const ActivityDashboard: React.FC = () => {
                           <option value="90">Last 90 days</option>
                           <option value="all">All time</option>
                         </Select>
-                      </SimpleGrid>
-                    </VStack>
-                  </CardBody>
-                </Card>
-
-                {/* Activity Feed */}
-                <Card bg={cardBg} shadow="lg" borderRadius="xl">
-                  <CardBody>
-                    <Flex justify="space-between" align="center" mb={6}>
-                      <Heading size="md" color={textColor}>Recent Activity</Heading>
-                      <Text color={mutedColor} fontSize="sm">
-                        {filteredData.length} activities found
-                      </Text>
-                    </Flex>
-
-                    <VStack spacing={4} align="stretch" maxH="600px" overflowY="auto">
-                      <VStack spacing={4} align="stretch">
-                        {filteredData.length === 0 ? (
-                          <Box textAlign="center" py={12}>
-                            <Icon as={FiActivity} boxSize={12} color={mutedColor} mb={4} />
-                            <Text color={mutedColor} fontSize="lg">No activities found</Text>
-                            <Text color={mutedColor} fontSize="sm">Try adjusting your filters</Text>
-                          </Box>
-                        ) : (
-                          filteredData.map((record) => {
-                            const displayName = hideNames && record.fromId !== currentAuthor._id 
-                              ? record.fromPseudo 
-                              : record.from;
-                            
-                            return (
-                              <Card
-                                key={record.id}
-                                variant="outline"
-                                cursor="pointer"
-                                onClick={() => handleRecordClick(record)}
-                                _hover={{ shadow: "md", transform: "translateY(-2px)" }}
-                                transition="all 0.2s"
-                                borderRadius="lg"
-                              >
-                                <CardBody>
-                                  <Flex align="center" justify="space-between">
-                                    <HStack spacing={4} flex={1}>
-                                      <Icon
-                                        as={getActionIcon(record.type)}
-                                        boxSize={5}
-                                        color={`${getActionColor(record.type)}.500`}
-                                      />
-                                      
-                                      <VStack align="start" spacing={1} flex={1}>
-                                        <Text fontWeight="semibold" color={textColor} noOfLines={1}>
-                                          {record.title}
-                                        </Text>
-                                        <HStack spacing={2}>
-                                          <Avatar size="xs" name={displayName} />
-                                          <Text fontSize="sm" color={mutedColor}>
-                                            {displayName}
-                                          </Text>
-                                          <Badge colorScheme={getActionColor(record.type)} size="sm">
-                                            {record.type}
-                                          </Badge>
-                                          <Badge variant="outline" size="sm">
-                                            {record.view}
-                                          </Badge>
-                                        </HStack>
-                                      </VStack>
-                                    </HStack>
-                                    
-                                    <VStack align="end" spacing={1}>
-                                      <Text fontSize="xs" color={mutedColor}>
-                                        {record.date.toLocaleDateString()}
-                                      </Text>
-                                      <Text fontSize="xs" color={mutedColor}>
-                                        {record.date.toLocaleTimeString()}
-                                      </Text>
-                                    </VStack>
-                                  </Flex>
-                                </CardBody>
-                              </Card>
-                            );
-                          })
-                        )}
                       </VStack>
                     </VStack>
                   </CardBody>
                 </Card>
-              </VStack>
-            </GridItem>
 
-            {/* Sidebar */}
-            <GridItem>
-              <VStack spacing={6} align="stretch" maxH="calc(100vh - 200px)" overflowY="auto">
                 {/* Top Users */}
                 <Card bg={cardBg} shadow="lg" borderRadius="xl">
                   <CardBody>
