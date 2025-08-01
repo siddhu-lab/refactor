@@ -46,6 +46,8 @@ import {
 } from '@chakra-ui/react';
 import { InfoIcon, SettingsIcon, ViewIcon, ViewOffIcon, ChevronDownIcon, ChevronUpIcon } from '@chakra-ui/icons';
 import { Network } from 'vis-network';
+import { useLazyQuery, useQuery } from '@apollo/client';
+import Dictionary from '../../Queries/Dictionary.js';
 import dashboardContext from '../../context/dashboard.js';
 
 const UnifiedDashboard: React.FC = () => {
@@ -60,10 +62,38 @@ const UnifiedDashboard: React.FC = () => {
   const mainBgColor = useColorModeValue('gray.50', 'gray.900');
   const sidebarBg = useColorModeValue('white', 'gray.800');
   
+  // API Queries
+  const [getLinksFromId] = useLazyQuery(Dictionary.getLinksFromId);
+  const [getKObjectById] = useLazyQuery(Dictionary.getKObjectById);
+  
+  // Activity Data API
+  const { data: activityData, loading: activityLoading, refetch: refetchActivity } = useQuery(Dictionary.getSocialInteractions, {
+    variables: { communityId: community.id },
+    skip: !community.id
+  });
+
+  // Buildson Data API  
+  const { data: buildsonData, loading: buildsonLoading, refetch: refetchBuildson } = useQuery(Dictionary.buildsonLinks, {
+    variables: { communityId: community.id },
+    skip: !community.id
+  });
+
+  // Contributions Data API
+  const { data: contribData, loading: contribLoading } = useQuery(Dictionary.searchContributions, {
+    variables: {
+      query: {
+        communityId: community.id,
+        status: "active",
+        pagesize: 10000,
+      },
+    },
+    skip: !community.id
+  });
+
   // Data State
-  const [rawData, setRawData] = useState<any[]>([]);
+  const [mergedData, setMergedData] = useState<any[]>([]);
   const [filteredData, setFilteredData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [network, setNetwork] = useState<Network | null>(null);
   
   // Filter State
@@ -101,113 +131,70 @@ const UnifiedDashboard: React.FC = () => {
   const isManager = role === 'manager';
   const currentUserName = `${me?.firstName} ${me?.lastName}`;
 
-  // Enhanced dummy data - Combined activity and knowledge building data
-  const dummyData = [
-    // Activity data
-    {
-      id: '1', when: Date.now() - 86400000 * 5, type: 'read',
-      from: 'John Smith', fromId: 'author-1', fromPseudo: 'JohnS',
-      to: 'Sarah Johnson', toPseudo: 'SarahJ',
-      title: 'Climate Change Discussion', view: 'Science Discussion',
-      data: { body: '<p>This is a discussion about climate change and its impacts.</p>' },
-      ID: 'contrib-1'
-    },
-    {
-      id: '2', when: Date.now() - 86400000 * 3, type: 'created',
-      from: 'Sarah Johnson', fromId: 'author-2', fromPseudo: 'SarahJ',
-      to: 'Sarah Johnson', toPseudo: 'SarahJ',
-      title: 'Mathematical Proof Analysis', view: 'Math Problems',
-      data: { body: '<p>Here is my analysis of the mathematical proof presented in class.</p>' },
-      ID: 'contrib-2'
-    },
-    {
-      id: '3', when: Date.now() - 86400000 * 2, type: 'modified',
-      from: 'Mike Wilson', fromId: 'author-3', fromPseudo: 'MikeW',
-      to: 'Mike Wilson', toPseudo: 'MikeW',
-      title: 'History Essay Update', view: 'History Class',
-      data: { body: '<p>Updated my essay on World War II with additional sources.</p>' },
-      ID: 'contrib-3'
-    },
-    {
-      id: '4', when: Date.now() - 86400000 * 1, type: 'read',
-      from: 'Alice Brown', fromId: 'author-4', fromPseudo: 'AliceB',
-      to: 'John Smith', toPseudo: 'JohnS',
-      title: 'Climate Change Discussion', view: 'Science Discussion',
-      data: { body: '<p>Reading the climate change discussion.</p>' },
-      ID: 'contrib-1'
-    },
-    {
-      id: '5', when: Date.now() - 86400000 * 4, type: 'read',
-      from: 'Bob Davis', fromId: 'author-5', fromPseudo: 'BobD',
-      to: 'Sarah Johnson', toPseudo: 'SarahJ',
-      title: 'Mathematical Proof Analysis', view: 'Math Problems',
-      data: { body: '<p>Reading the mathematical proof analysis.</p>' },
-      ID: 'contrib-2'
-    },
-    {
-      id: '6', when: Date.now() - 86400000 * 6, type: 'read',
-      from: 'Carol White', fromId: 'author-6', fromPseudo: 'CarolW',
-      to: 'Mike Wilson', toPseudo: 'MikeW',
-      title: 'History Essay Update', view: 'History Class',
-      data: { body: '<p>Reading the updated history essay.</p>' },
-      ID: 'contrib-3'
-    },
-    // Knowledge building data
-    {
-      id: '7', when: Date.now() - 86400000 * 1, type: 'buildson',
-      from: 'Alice Brown', fromId: 'author-4', fromPseudo: 'AliceB',
-      to: 'John Smith', toPseudo: 'JohnS',
-      title: 'Building on Climate Discussion', view: 'Science Discussion',
-      data: { body: '<p>Building on the climate change discussion with additional research.</p>' },
-      ID: 'contrib-4', strength: 3
-    },
-    {
-      id: '8', when: Date.now() - 86400000 * 4, type: 'buildson',
-      from: 'Bob Davis', fromId: 'author-5', fromPseudo: 'BobD',
-      to: 'Sarah Johnson', toPseudo: 'SarahJ',
-      title: 'Math Proof Extension', view: 'Math Problems',
-      data: { body: '<p>Extending the mathematical proof with new theorems.</p>' },
-      ID: 'contrib-5', strength: 2
-    },
-    {
-      id: '9', when: Date.now() - 86400000 * 7, type: 'buildson',
-      from: 'John Smith', fromId: 'author-1', fromPseudo: 'JohnS',
-      to: 'Bob Davis', toPseudo: 'BobD',
-      title: 'Further Math Extensions', view: 'Math Problems',
-      data: { body: '<p>Building further on the mathematical concepts.</p>' },
-      ID: 'contrib-6', strength: 1
-    },
-    {
-      id: '10', when: Date.now() - 86400000 * 3, type: 'buildson',
-      from: 'Sarah Johnson', fromId: 'author-2', fromPseudo: 'SarahJ',
-      to: 'John Smith', toPseudo: 'JohnS',
-      title: 'Climate Research Extension', view: 'Science Discussion',
-      data: { body: '<p>Building on climate research with new data.</p>' },
-      ID: 'contrib-7', strength: 2
-    }
-  ];
 
-  // Initialize data
+  // Merge data from both APIs
   useEffect(() => {
-    setLoading(true);
-    setTimeout(() => {
-      const processedData = dummyData.map((d) => {
-        const dCopy = { ...d };
-        const date = new Date(parseInt(dCopy.when));
-        dCopy.date = date;
-        dCopy.value = 1;
-        return dCopy;
+    if (activityLoading || buildsonLoading || contribLoading) {
+      setLoading(true);
+      return;
+    const merged: any[] = [];
+    
+    // Process activity data (reads, creates, modifies)
+    if (activityData?.getSocialInteractions) {
+      activityData.getSocialInteractions.forEach((activity: any) => {
+        const processedActivity = {
+          ...activity,
+          date: new Date(parseInt(activity.when)),
+          value: 1,
+          source: 'activity'
+        };
+        merged.push(processedActivity);
       });
+    }
+
+    // Process buildson data
+    if (buildsonData?.buildsonLinks && contribData?.searchContributions) {
+      const contributions = contribData.searchContributions;
       
-      setRawData(processedData);
-      setLoading(false);
-    }, 500);
-  }, []);
+      buildsonData.buildsonLinks.forEach((link: any) => {
+        // Find source and target contributions
+        const sourceContrib = contributions.find((c: any) => c.id === link.from || c._id === link.from);
+        const targetContrib = contributions.find((c: any) => c.id === link.to || c._id === link.to);
+        
+        if (sourceContrib && targetContrib) {
+          // Get author information
+          const sourceAuthor = community.authors?.find((a: any) => sourceContrib.authors?.includes(a.id));
+          const targetAuthor = community.authors?.find((a: any) => targetContrib.authors?.includes(a.id));
+          
+          if (sourceAuthor && targetAuthor) {
+            const buildsonActivity = {
+              id: link.id,
+              when: link.created,
+              date: new Date(parseInt(link.created)),
+              type: 'buildson',
+              from: `${sourceAuthor.firstName} ${sourceAuthor.lastName}`,
+              fromId: sourceAuthor.id,
+              fromPseudo: sourceAuthor.pseudoName,
+              to: `${targetAuthor.firstName} ${targetAuthor.lastName}`,
+              toPseudo: targetAuthor.pseudoName,
+              title: sourceContrib.title || 'Untitled',
+              view: sourceContrib.view || 'Unknown',
+              data: sourceContrib.data || { body: '' },
+              ID: sourceContrib.id || sourceContrib._id,
+              targetID: targetContrib.id || targetContrib._id,
+              strength: 1, // You can calculate this based on your logic
+              value: 1,
+              source: 'buildson',
+              _from: { authors: sourceContrib.authors },
+              _to: { authors: targetContrib.authors }
+            };
+            merged.push(buildsonActivity);
+          }
+        }
+      });
+    }
 
-  // Apply filters to data
-  const applyFilters = (data: any[]) => {
-    let filtered = data;
-
+    setMergedData(merged);
     // View filter
     if (selectedView !== 'all') {
       filtered = filtered.filter(d => d.view === selectedView);
@@ -245,10 +232,10 @@ const UnifiedDashboard: React.FC = () => {
 
   // Update filtered data when filters change
   useEffect(() => {
-    const filtered = applyFilters(rawData);
+    const filtered = applyFilters(mergedData);
     setFilteredData(filtered);
     setSelectedNodeInfo(null); // Clear selection when data changes
-  }, [rawData, selectedView, selectedGroup, selectedAuthor, dateRange]);
+  }, [mergedData, selectedView, selectedGroup, selectedAuthor, dateRange]);
 
   // Process unified network data combining both activity and knowledge building
   const networkData = useMemo(() => {
@@ -269,11 +256,13 @@ const UnifiedDashboard: React.FC = () => {
           reads: 0, creates: 0, modifies: 0, buildons: 0,
           activities: [], buildsonConnections: [], builtUponBy: [],
           totalActivity: 0, sharedPieces: new Set()
+          totalActivity: 0, sharedPieces: new Set()
         });
       }
       
       const userActivity = userActivities.get(fromName);
       userActivity.activities.push(item);
+      userActivity.totalActivity++;
       userActivity.totalActivity++;
       
       if (item.type === 'read') userActivity.reads++;
@@ -294,6 +283,7 @@ const UnifiedDashboard: React.FC = () => {
             reads: 0, creates: 0, modifies: 0, buildons: 0,
             activities: [], buildsonConnections: [], builtUponBy: [],
             totalActivity: 0, sharedPieces: new Set()
+            totalActivity: 0, sharedPieces: new Set()
           });
         }
         userActivities.get(toName).builtUponBy.push({
@@ -302,6 +292,14 @@ const UnifiedDashboard: React.FC = () => {
           title: item.title,
           date: item.date
         });
+      }
+      
+      // Track shared content pieces
+      if (item.ID) {
+        userActivity.sharedPieces.add(item.ID);
+        if (toName !== fromName && userActivities.has(toName)) {
+          userActivities.get(toName).sharedPieces.add(item.ID);
+        }
       }
       
       // Track shared content pieces
@@ -354,12 +352,15 @@ const UnifiedDashboard: React.FC = () => {
       // Create edges
       if (fromName !== toName && item.to) {
         const edgeKey = `${fromName}-${toName}`;
-        
-        if (edgeMap.has(edgeKey)) {
           const existingEdge = edgeMap.get(edgeKey);
           existingEdge.weight += 1;
           existingEdge.width = Math.max(edgeWidth, existingEdge.weight * edgeWidth);
           existingEdge.interactions.push(item);
+          
+          // Track shared pieces for this edge
+          if (item.ID) {
+            existingEdge.sharedPieces.add(item.ID);
+          }
           
           // Track shared pieces for this edge
           if (item.ID) {
@@ -381,6 +382,7 @@ const UnifiedDashboard: React.FC = () => {
             title: getEdgeTitle(item, fromName, toName),
             shadow: { enabled: true, color: 'rgba(0,0,0,0.1)', size: 3, x: 1, y: 1 },
             sharedPieces: new Set(item.ID ? [item.ID] : [])
+            sharedPieces: new Set(item.ID ? [item.ID] : [])
           };
           
           edgeMap.set(edgeKey, newEdge);
@@ -394,14 +396,12 @@ const UnifiedDashboard: React.FC = () => {
         const types = [...new Set(edge.interactions.map(i => i.type))];
         const sharedCount = edge.sharedPieces.size;
         edge.title = `${edge.from} → ${edge.to}\n${edge.interactions.length} interactions\nTypes: ${types.join(', ')}\nShared pieces: ${sharedCount}`;
-      }
-      edges.push(edge);
-    });
 
     // Add user activity data to nodes
     nodes.forEach((node, nodeName) => {
       const activity = userActivities.get(nodeName);
       if (activity) {
+        activity.sharedPiecesCount = activity.sharedPieces.size;
         activity.sharedPiecesCount = activity.sharedPieces.size;
         node.userActivity = activity;
       }
@@ -414,9 +414,6 @@ const UnifiedDashboard: React.FC = () => {
         case 'created': return '#805ad5';
         case 'buildson': return '#e53e3e';
         default: return '#718096';
-      }
-    }
-    
     function getEdgeTitle(item: any, fromName: string, toName: string): string {
       if (item.type === 'buildson') {
         return `${fromName} built on ${toName}'s work${item.strength ? ` (strength: ${item.strength})` : ''}`;
@@ -433,6 +430,8 @@ const UnifiedDashboard: React.FC = () => {
       stats: {
         totalNodes: nodeArray.length,
         totalConnections: edges.length,
+        totalActivities: filteredData.length,
+        totalBuildsons: filteredData.filter(d => d.type === 'buildson').length,
         totalActivities: filteredData.length,
         totalBuildsons: filteredData.filter(d => d.type === 'buildson').length,
         mostActiveUser: nodeArray.length > 0 ? nodeArray.reduce((prev, current) => 
@@ -586,23 +585,6 @@ const UnifiedDashboard: React.FC = () => {
       { color: "red.500", label: "Buildson" }
     ]
   };
-
-  // User statistics data for table
-  const userStatsData = useMemo(() => {
-    const stats = new Map();
-    
-    filteredData.forEach(item => {
-      const userName = hideNames && item.fromId !== community.author.id ? item.fromPseudo : item.from;
-      
-      if (!stats.has(userName)) {
-        stats.set(userName, {
-          name: userName,
-          reads: 0,
-          creates: 0,
-          modifies: 0,
-          buildons: 0,
-          total: 0
-        });
       }
       
       const userStat = stats.get(userName);
@@ -630,9 +612,52 @@ const UnifiedDashboard: React.FC = () => {
   const paginatedRecords = useMemo(() => {
     const startIndex = (currentPage - 1) * entriesPerPage;
     const endIndex = startIndex + entriesPerPage;
+  // User statistics data for table
+  const userStatsData = useMemo(() => {
+    const stats = new Map();
+    
+    filteredData.forEach(item => {
+      const userName = hideNames && item.fromId !== community.author.id ? item.fromPseudo : item.from;
+      
+      if (!stats.has(userName)) {
+        stats.set(userName, {
+          name: userName,
+          reads: 0,
+          creates: 0,
+          modifies: 0,
+          buildons: 0,
+          total: 0
+        });
+      }
+      
+      const userStat = stats.get(userName);
+      userStat[item.type] = (userStat[item.type] || 0) + 1;
+      userStat.total += 1;
+    });
+    
+    return Array.from(stats.values()).sort((a, b) => b.total - a.total);
+  }, [filteredData, hideNames, community.author.id]);
+  }, [activityRecordsData, currentPage, entriesPerPage]);
+  // Activity records data for table
+  const activityRecordsData = useMemo(() => {
+    return filteredData
+      .filter(item => {
+        if (!searchTerm) return true;
+        const userName = hideNames && item.fromId !== community.author.id ? item.fromPseudo : item.from;
+        return item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               item.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               userName.toLowerCase().includes(searchTerm.toLowerCase());
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [filteredData, searchTerm, hideNames, community.author.id]);
+
+  // Pagination for activity records
+  const paginatedRecords = useMemo(() => {
+    const startIndex = (currentPage - 1) * entriesPerPage;
+    const endIndex = startIndex + entriesPerPage;
     return activityRecordsData.slice(startIndex, endIndex);
   }, [activityRecordsData, currentPage, entriesPerPage]);
-
+  const totalPages = Math.ceil(activityRecordsData.length / entriesPerPage);
   const totalPages = Math.ceil(activityRecordsData.length / entriesPerPage);
 
   if (loading) {
@@ -666,6 +691,14 @@ const UnifiedDashboard: React.FC = () => {
                   <Text>
                     <Badge colorScheme="green" mr={1}>{networkData.stats.totalConnections}</Badge>
                     Connections
+                  </Text>
+                  <Text>
+                    <Badge colorScheme="orange" mr={1}>{networkData.stats.totalActivities}</Badge>
+                    Activities
+                  </Text>
+                  <Text>
+                    <Badge colorScheme="red" mr={1}>{networkData.stats.totalBuildsons}</Badge>
+                    Buildsons
                   </Text>
                   <Text>
                     <Badge colorScheme="orange" mr={1}>{networkData.stats.totalActivities}</Badge>
@@ -711,6 +744,7 @@ const UnifiedDashboard: React.FC = () => {
                 <Text fontWeight="bold">{hoveredEdgeInfo.from} → {hoveredEdgeInfo.to}</Text>
                 <Text>Interactions: {hoveredEdgeInfo.interactions.length}</Text>
                 <Text>Shared pieces: {hoveredEdgeInfo.sharedPieces?.size || 0}</Text>
+                <Text>Shared pieces: {hoveredEdgeInfo.sharedPieces?.size || 0}</Text>
                 {hoveredEdgeInfo.interactions.slice(0, 3).map((interaction, idx) => (
                   <Text key={idx} fontSize="xs" color="gray.300">
                     • {interaction.type}: {interaction.title}
@@ -735,6 +769,14 @@ const UnifiedDashboard: React.FC = () => {
                 <Heading size="sm">Data Tables</Heading>
               </CardHeader>
               <CardBody pt={0}>
+                <VStack spacing={3}>
+                  <HStack justify="space-between" w="full">
+                    <Text fontSize="sm">User Statistics</Text>
+                    <Button
+                      size="xs"
+                <Heading size="sm">Data Tables</Heading>
+                      onClick={toggleUserStats}
+                      variant="outline"
                 <VStack spacing={3}>
                   <HStack justify="space-between" w="full">
                     <Text fontSize="sm">User Statistics</Text>
@@ -773,9 +815,9 @@ const UnifiedDashboard: React.FC = () => {
                     <FormLabel fontSize="sm">View</FormLabel>
                     <Select size="sm" value={selectedView} onChange={(e) => setSelectedView(e.target.value)}>
                       <option value="all">All Views</option>
-                      <option value="Science Discussion">Science Discussion</option>
-                      <option value="Math Problems">Math Problems</option>
-                      <option value="History Class">History Class</option>
+                      {community.views?.map(view => (
+                        <option key={view.id} value={view.title}>{view.title}</option>
+                      ))}
                     </Select>
                   </FormControl>
 
@@ -923,43 +965,36 @@ const UnifiedDashboard: React.FC = () => {
               </CardBody>
             </Card>
 
-            {/* Selected Node Info */}
-            {selectedNodeInfo && (
-              <Card>
-                <CardHeader pb={2}>
-                  <HStack>
-                    <Icon as={InfoIcon} />
-                    <Heading size="sm">Selected User</Heading>
-                  </HStack>
-                </CardHeader>
-                <CardBody pt={0}>
-                  <VStack align="start" spacing={3}>
-                    <VStack align="start" spacing={1}>
-                      <Text fontWeight="bold" fontSize="lg">{selectedNodeInfo.label}</Text>
-                      <Badge colorScheme={selectedNodeInfo.isCurrentUser ? 'red' : 'blue'}>
-                        {selectedNodeInfo.isCurrentUser ? 'You' : 'Peer'}
-                      </Badge>
-                    </VStack>
+                        
+                        {selectedNodeInfo.userActivity.buildsonConnections?.length > 0 && (
+                          <>
+                            <Text fontWeight="bold" fontSize="sm">
+                              Built onto {selectedNodeInfo.userActivity.buildsonConnections.length} notes:
+                            </Text>
+                            <VStack align="start" spacing={1} maxH="100px" overflowY="auto" w="full">
+                              {selectedNodeInfo.userActivity.buildsonConnections.map((conn, idx) => (
+                                <Text key={idx} fontSize="xs">
+                                  • Strength {conn.strength} by {conn.target}
+                                </Text>
+                              ))}
+                            </VStack>
+                          </>
+                        )}
 
-                    <Divider />
-
-                    {selectedNodeInfo.userActivity && (
-                      <>
-                        <VStack align="start" spacing={2} w="full">
-                          <Text fontWeight="bold" fontSize="sm">
-                            {selectedNodeInfo.label} has {selectedNodeInfo.userActivity.totalActivity} total activities.
-                          </Text>
-                          <SimpleGrid columns={2} spacing={2} w="full" fontSize="xs">
-                            <Text>📖 Reads: {selectedNodeInfo.userActivity.reads}</Text>
-                            <Text>✏️ Creates: {selectedNodeInfo.userActivity.creates}</Text>
-                            <Text>🔄 Modifies: {selectedNodeInfo.userActivity.modifies}</Text>
-                            <Text>🔗 Buildsons: {selectedNodeInfo.userActivity.buildons}</Text>
-                          </SimpleGrid>
-                          <Text fontSize="xs" color="gray.600">
-                            📄 Shared {selectedNodeInfo.userActivity.sharedPiecesCount} content pieces
-                          </Text>
-                        </VStack>
-                        <Divider />
+                        {selectedNodeInfo.userActivity.builtUponBy?.length > 0 && (
+                          <>
+                            <Text fontWeight="bold" fontSize="sm">
+                              {selectedNodeInfo.userActivity.builtUponBy.length} note{selectedNodeInfo.userActivity.builtUponBy.length > 1 ? 's were' : ' was'} built upon:
+                            </Text>
+                            <VStack align="start" spacing={1} maxH="100px" overflowY="auto" w="full">
+                              {selectedNodeInfo.userActivity.builtUponBy.map((conn, idx) => (
+                                <Text key={idx} fontSize="xs">
+                                  • Strength {conn.strength} by {conn.source}
+                                </Text>
+                              ))}
+                            </VStack>
+                          </>
+                        )}
                         
                         {selectedNodeInfo.userActivity.buildsonConnections?.length > 0 && (
                           <>
@@ -1049,6 +1084,140 @@ const UnifiedDashboard: React.FC = () => {
           </VStack>
         </GridItem>
       </Grid>
+      
+      {/* User Statistics Table */}
+      <Collapse in={showUserStats} animateOpacity>
+        <Box position="fixed" bottom={4} left={4} right="420px" bg={bgColor} 
+             borderRadius="md" shadow="lg" border="1px" borderColor={borderColor} 
+             maxH="300px" overflowY="auto" zIndex={1000}>
+          <Box p={4} borderBottom="1px" borderColor={borderColor}>
+            <HStack justify="space-between">
+              <Heading size="sm">User Activity Statistics</Heading>
+              <Button size="xs" onClick={toggleUserStats}>
+                <ChevronUpIcon />
+              </Button>
+            </HStack>
+          </Box>
+          <TableContainer>
+            <Table size="sm">
+              <Thead>
+                <Tr>
+                  <Th>User</Th>
+                  <Th isNumeric>Reads</Th>
+                  <Th isNumeric>Creates</Th>
+                  <Th isNumeric>Modifies</Th>
+                  <Th isNumeric>Buildsons</Th>
+                  <Th isNumeric>Total</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {userStatsData.map((user, idx) => (
+                  <Tr key={idx}>
+                    <Td fontWeight="medium">{user.name}</Td>
+                    <Td isNumeric>{user.reads || 0}</Td>
+                    <Td isNumeric>{user.creates || 0}</Td>
+                    <Td isNumeric>{user.modifies || 0}</Td>
+                    <Td isNumeric>{user.buildons || 0}</Td>
+                    <Td isNumeric fontWeight="bold">{user.total}</Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </TableContainer>
+        </Box>
+      </Collapse>
+      
+      {/* Activity Records Table */}
+      <Collapse in={showActivityRecords} animateOpacity>
+        <Box position="fixed" bottom={4} left={4} right="420px" bg={bgColor} 
+             borderRadius="md" shadow="lg" border="1px" borderColor={borderColor} 
+             maxH="400px" overflowY="auto" zIndex={1000}>
+          <Box p={4} borderBottom="1px" borderColor={borderColor}>
+            <HStack justify="space-between" mb={3}>
+              <Heading size="sm">Activity Records</Heading>
+              <Button size="xs" onClick={toggleActivityRecords}>
+                <ChevronUpIcon />
+              </Button>
+            </HStack>
+            <HStack spacing={3}>
+              <Input
+                size="sm"
+                placeholder="Search records..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                maxW="200px"
+              />
+              <Select size="sm" value={entriesPerPage} onChange={(e) => setEntriesPerPage(Number(e.target.value))} maxW="100px">
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+              </Select>
+              <Text fontSize="xs" color="gray.600">
+                {((currentPage - 1) * entriesPerPage) + 1}-{Math.min(currentPage * entriesPerPage, activityRecordsData.length)} of {activityRecordsData.length}
+              </Text>
+            </HStack>
+          </Box>
+          <TableContainer>
+            <Table size="sm">
+              <Thead>
+                <Tr>
+                  <Th>Date</Th>
+                  <Th>Type</Th>
+                  <Th>User</Th>
+                  <Th>Title</Th>
+                  <Th>View</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {paginatedRecords.map((record, idx) => {
+                  const userName = hideNames && record.fromId !== community.author.id ? record.fromPseudo : record.from;
+                  return (
+                    <Tr key={idx}>
+                      <Td fontSize="xs">{record.date.toLocaleDateString()}</Td>
+                      <Td>
+                        <Badge 
+                          size="sm" 
+                          colorScheme={
+                            record.type === 'read' ? 'green' : 
+                            record.type === 'created' ? 'purple' : 
+                            record.type === 'modified' ? 'yellow' : 'red'
+                          }
+                        >
+                          {record.type}
+                        </Badge>
+                      </Td>
+                      <Td fontSize="xs">{userName}</Td>
+                      <Td fontSize="xs" maxW="200px" isTruncated>{record.title}</Td>
+                      <Td fontSize="xs">{record.view}</Td>
+                    </Tr>
+                  );
+                })}
+              </Tbody>
+            </Table>
+          </TableContainer>
+          {totalPages > 1 && (
+            <Box p={3} borderTop="1px" borderColor={borderColor}>
+              <HStack justify="center" spacing={2}>
+                <Button 
+                  size="xs" 
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  isDisabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <Text fontSize="xs">Page {currentPage} of {totalPages}</Text>
+                <Button 
+                  size="xs" 
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  isDisabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </HStack>
+            </Box>
+          )}
+        </Box>
+      </Collapse>
       
       {/* User Statistics Table */}
       <Collapse in={showUserStats} animateOpacity>
