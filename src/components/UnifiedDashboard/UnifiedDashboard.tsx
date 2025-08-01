@@ -267,7 +267,7 @@ const UnifiedDashboard: React.FC = () => {
       if (!userActivities.has(fromName)) {
         userActivities.set(fromName, {
           reads: 0, creates: 0, modifies: 0, buildons: 0,
-          activities: [], buildsonConnections: [], builtUponBy: []
+          activities: [], buildsonConnections: [], builtUponBy: [],
           totalActivity: 0, sharedPieces: new Set()
         });
       }
@@ -292,7 +292,7 @@ const UnifiedDashboard: React.FC = () => {
         if (!userActivities.has(toName)) {
           userActivities.set(toName, {
             reads: 0, creates: 0, modifies: 0, buildons: 0,
-            activities: [], buildsonConnections: [], builtUponBy: []
+            activities: [], buildsonConnections: [], builtUponBy: [],
             totalActivity: 0, sharedPieces: new Set()
           });
         }
