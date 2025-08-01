@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Home, BookOpen, TrendingUp, MessageSquare, Lightbulb, Activity, Layers } from 'lucide-react';
-import UnifiedGraphDashboard from './UnifiedGraphDashboard/UnifiedGraphDashboard.tsx';
+import TabbedDashboard from './TabbedDashboard.tsx';
 
 
 const MainDashboard = () => {
@@ -23,7 +23,7 @@ const MainDashboard = () => {
     
     switch (active) {
       case 'Activity':
-        return <UnifiedGraphDashboard />;
+        return <TabbedDashboard />;
       case 'Dictionary':
         return <div className="content-placeholder">Word Dictionary Component</div>;
       case 'Progress':
