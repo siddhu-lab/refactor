@@ -6,7 +6,6 @@ import {
   HStack,
   Text,
   Select,
-  Button,
   Switch,
   FormControl,
   FormLabel,
@@ -14,12 +13,9 @@ import {
   CardHeader,
   CardBody,
   Heading,
-  Divider,
-  Badge,
   Stat,
   StatLabel,
   StatNumber,
-  StatHelpText,
   useColorModeValue,
   Slider,
   SliderTrack,
@@ -36,9 +32,8 @@ import {
   AlertTitle,
   AlertDescription,
 } from '@chakra-ui/react';
-import { InfoIcon, DownloadIcon, RefreshCwIcon } from 'lucide-react';
+import { DownloadIcon, RefreshCwIcon } from 'lucide-react';
 import * as d3 from 'd3';
-import * as dc from 'dc';
 import crossfilter from 'crossfilter2';
 import { Network } from 'vis-network';
 import dashboardContext from '../../context/dashboard';
