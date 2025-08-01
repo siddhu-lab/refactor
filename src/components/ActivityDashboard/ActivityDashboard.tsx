@@ -59,7 +59,7 @@ import {
   FiRefreshCw
 } from 'react-icons/fi';
 import dashboardContext from '../../context/dashboard.js';
-import StatisticsTable from './StatisticsTable';
+import StatisticsTable from './StatisticsTable.tsx';
 import MainDataTable from './MainDataTable/MainDataTable.tsx';
 import ViewsDropdown from './ViewsDropdown';
 import './ActivityDashboard.css';
