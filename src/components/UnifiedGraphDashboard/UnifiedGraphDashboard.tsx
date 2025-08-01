@@ -36,10 +36,7 @@ import {
   Radio,
   Stack,
   Flex,
-  useDisclosure
-} from '@chakra-ui/react';
-import { InfoIcon, SettingsIcon } from '@chakra-ui/icons';
-import { Network } from 'vis-network';
+  useDisclosure,
   Collapse,
   CheckboxGroup,
   Checkbox,
@@ -50,6 +47,10 @@ import { Network } from 'vis-network';
   Th,
   Td,
   TableContainer
+} from '@chakra-ui/react';
+import { InfoIcon, SettingsIcon } from '@chakra-ui/icons';
+import { Network } from 'vis-network';
+  
 import dashboardContext from '../../context/dashboard.js';
 
 const UnifiedDashboard: React.FC = () => {
