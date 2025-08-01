@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useMemo } from 'react';
+import React, { useContext, useState, useMemo } from 'react';
 import {
   Box,
   Container,
@@ -30,10 +30,6 @@ import {
   InputLeftElement,
   Select,
   Tooltip,
-  MenuItem,
-  IconButton,
-  Wrap,
-  WrapItem,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -41,8 +37,6 @@ import {
   ModalBody,
   ModalCloseButton,
   useDisclosure,
-  Skeleton,
-  SkeletonText,
   Collapse,
   useBreakpointValue
 } from '@chakra-ui/react';
@@ -72,7 +66,7 @@ import {
   FiRefreshCw
 } from 'react-icons/fi';
 import dashboardContext from '../../context/dashboard.js';
-import StatisticsTable from './StatisticsTable';
+import StatisticsTable from './StatisticsTable.tsx';
 import MainDataTable from './MainDataTable/MainDataTable';
 import ViewsDropdown from './ViewsDropdown';
 import './ActivityDashboard.css';
