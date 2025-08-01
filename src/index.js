@@ -1,8 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import * as d3 from 'd3';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+
+// Make d3 globally available for dc.js
+window.d3 = d3;
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

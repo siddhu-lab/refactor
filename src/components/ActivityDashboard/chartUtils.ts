@@ -3,9 +3,6 @@ import * as dc from 'dc';
 import crossfilter from 'crossfilter2';
 import { ActivityRecord } from './types';
 
-// Make d3 globally accessible for dc.js
-(window as any).d3 = d3;
-
 if (typeof dc !== 'undefined' && typeof d3 !== 'undefined') {
   dc.config.defaultColors(d3.schemeCategory10);
   // Register the nester function for D3 v6 compatibility
