@@ -1,11 +1,10 @@
 
 .activity-dashboard {
   padding: 0;
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  max-height: 100vh;
-  overflow: hidden;
+  overflow-y: auto;
   font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   background-color: #f8f9fa;
 }
@@ -17,8 +16,6 @@
 .activity-dashboard .activity-container {
   padding: 1rem;
   flex: 1;
-  height: 100%;
-  max-height: calc(100vh - 2rem);
   overflow-y: auto;
   display: flex;
   flex-direction: column;

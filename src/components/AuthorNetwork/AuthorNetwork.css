@@ -1,10 +1,9 @@
 .author-network-container {
   padding: 0;
-  height: 100%;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  max-height: 100%;
-  overflow: hidden;
+  overflow-y: auto;
   font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
@@ -15,9 +14,7 @@
 .author-network-container .cd-content-width {
   padding: 1rem;
   flex: 1;
-  height: 100%;
-  max-height: 100%;
-  overflow: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
 }
@@ -26,10 +23,8 @@
   display: grid;
   grid-template-columns: 1fr 350px;
   gap: 1rem;
-  height: 100%;
-  max-height: 100%;
   flex: 1;
-  min-height: 0;
+  min-height: 600px;
 }
 
 .author-network-container #network {

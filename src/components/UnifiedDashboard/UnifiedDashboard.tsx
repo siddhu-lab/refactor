@@ -160,7 +160,7 @@ const UnifiedDashboard: React.FC = () => {
   };
 
   return (
-    <Box bg={bgColor} minH="100vh" p={6}>
+    <Box bg={bgColor} minH="100vh" p={6} overflowY="auto">
       <VStack spacing={6} align="stretch">
         {/* Header Section */}
         <Card bg={cardBg} shadow="sm" borderColor={borderColor}>
@@ -530,11 +530,13 @@ const UnifiedDashboard: React.FC = () => {
 
           <CardBody pt={0}>
             <Box
-              minH="600px"
+              minH="500px"
+              maxH="800px"
               bg={useColorModeValue('gray.50', 'gray.900')}
               borderRadius="md"
               p={1}
               position="relative"
+              overflow="hidden"
             >
               {renderVisualization()}
             </Box>
