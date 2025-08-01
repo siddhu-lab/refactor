@@ -46,8 +46,6 @@ import {
 } from '@chakra-ui/react';
 import { InfoIcon, SettingsIcon, ViewIcon, ViewOffIcon, ChevronDownIcon, ChevronUpIcon } from '@chakra-ui/icons';
 import { Network } from 'vis-network';
-import { useLazyQuery, useQuery } from '@apollo/client';
-import Dictionary from '../../Queries/Dictionary.js';
 import dashboardContext from '../../context/dashboard.js';
 
 const UnifiedDashboard: React.FC = () => {
@@ -62,38 +60,10 @@ const UnifiedDashboard: React.FC = () => {
   const mainBgColor = useColorModeValue('gray.50', 'gray.900');
   const sidebarBg = useColorModeValue('white', 'gray.800');
   
-  // API Queries
-  const [getLinksFromId] = useLazyQuery(Dictionary.getLinksFromId);
-  const [getKObjectById] = useLazyQuery(Dictionary.getKObjectById);
-  
-  // Activity Data API
-  const { data: activityData, loading: activityLoading, refetch: refetchActivity } = useQuery(Dictionary.getSocialInteractions, {
-    variables: { communityId: community.id },
-    skip: !community.id
-  });
-
-  // Buildson Data API  
-  const { data: buildsonData, loading: buildsonLoading, refetch: refetchBuildson } = useQuery(Dictionary.buildsonLinks, {
-    variables: { communityId: community.id },
-    skip: !community.id
-  });
-
-  // Contributions Data API
-  const { data: contribData, loading: contribLoading } = useQuery(Dictionary.searchContributions, {
-    variables: {
-      query: {
-        communityId: community.id,
-        status: "active",
-        pagesize: 10000,
-      },
-    },
-    skip: !community.id
-  });
-
   // Data State
-  const [mergedData, setMergedData] = useState<any[]>([]);
+  const [rawData, setRawData] = useState<any[]>([]);
   const [filteredData, setFilteredData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [network, setNetwork] = useState<Network | null>(null);
   
   // Filter State
@@ -131,9 +101,112 @@ const UnifiedDashboard: React.FC = () => {
   const isManager = role === 'manager';
   const currentUserName = `${me?.firstName} ${me?.lastName}`;
 
-  // Apply filters function
+  // Enhanced dummy data - Combined activity and knowledge building data
+  const dummyData = [
+    // Activity data
+    {
+      id: '1', when: Date.now() - 86400000 * 5, type: 'read',
+      from: 'John Smith', fromId: 'author-1', fromPseudo: 'JohnS',
+      to: 'Sarah Johnson', toPseudo: 'SarahJ',
+      title: 'Climate Change Discussion', view: 'Science Discussion',
+      data: { body: '<p>This is a discussion about climate change and its impacts.</p>' },
+      ID: 'contrib-1'
+    },
+    {
+      id: '2', when: Date.now() - 86400000 * 3, type: 'created',
+      from: 'Sarah Johnson', fromId: 'author-2', fromPseudo: 'SarahJ',
+      to: 'Sarah Johnson', toPseudo: 'SarahJ',
+      title: 'Mathematical Proof Analysis', view: 'Math Problems',
+      data: { body: '<p>Here is my analysis of the mathematical proof presented in class.</p>' },
+      ID: 'contrib-2'
+    },
+    {
+      id: '3', when: Date.now() - 86400000 * 2, type: 'modified',
+      from: 'Mike Wilson', fromId: 'author-3', fromPseudo: 'MikeW',
+      to: 'Mike Wilson', toPseudo: 'MikeW',
+      title: 'History Essay Update', view: 'History Class',
+      data: { body: '<p>Updated my essay on World War II with additional sources.</p>' },
+      ID: 'contrib-3'
+    },
+    {
+      id: '4', when: Date.now() - 86400000 * 1, type: 'read',
+      from: 'Alice Brown', fromId: 'author-4', fromPseudo: 'AliceB',
+      to: 'John Smith', toPseudo: 'JohnS',
+      title: 'Climate Change Discussion', view: 'Science Discussion',
+      data: { body: '<p>Reading the climate change discussion.</p>' },
+      ID: 'contrib-1'
+    },
+    {
+      id: '5', when: Date.now() - 86400000 * 4, type: 'read',
+      from: 'Bob Davis', fromId: 'author-5', fromPseudo: 'BobD',
+      to: 'Sarah Johnson', toPseudo: 'SarahJ',
+      title: 'Mathematical Proof Analysis', view: 'Math Problems',
+      data: { body: '<p>Reading the mathematical proof analysis.</p>' },
+      ID: 'contrib-2'
+    },
+    {
+      id: '6', when: Date.now() - 86400000 * 6, type: 'read',
+      from: 'Carol White', fromId: 'author-6', fromPseudo: 'CarolW',
+      to: 'Mike Wilson', toPseudo: 'MikeW',
+      title: 'History Essay Update', view: 'History Class',
+      data: { body: '<p>Reading the updated history essay.</p>' },
+      ID: 'contrib-3'
+    },
+    // Knowledge building data
+    {
+      id: '7', when: Date.now() - 86400000 * 1, type: 'buildson',
+      from: 'Alice Brown', fromId: 'author-4', fromPseudo: 'AliceB',
+      to: 'John Smith', toPseudo: 'JohnS',
+      title: 'Building on Climate Discussion', view: 'Science Discussion',
+      data: { body: '<p>Building on the climate change discussion with additional research.</p>' },
+      ID: 'contrib-4', strength: 3
+    },
+    {
+      id: '8', when: Date.now() - 86400000 * 4, type: 'buildson',
+      from: 'Bob Davis', fromId: 'author-5', fromPseudo: 'BobD',
+      to: 'Sarah Johnson', toPseudo: 'SarahJ',
+      title: 'Math Proof Extension', view: 'Math Problems',
+      data: { body: '<p>Extending the mathematical proof with new theorems.</p>' },
+      ID: 'contrib-5', strength: 2
+    },
+    {
+      id: '9', when: Date.now() - 86400000 * 7, type: 'buildson',
+      from: 'John Smith', fromId: 'author-1', fromPseudo: 'JohnS',
+      to: 'Bob Davis', toPseudo: 'BobD',
+      title: 'Further Math Extensions', view: 'Math Problems',
+      data: { body: '<p>Building further on the mathematical concepts.</p>' },
+      ID: 'contrib-6', strength: 1
+    },
+    {
+      id: '10', when: Date.now() - 86400000 * 3, type: 'buildson',
+      from: 'Sarah Johnson', fromId: 'author-2', fromPseudo: 'SarahJ',
+      to: 'John Smith', toPseudo: 'JohnS',
+      title: 'Climate Research Extension', view: 'Science Discussion',
+      data: { body: '<p>Building on climate research with new data.</p>' },
+      ID: 'contrib-7', strength: 2
+    }
+  ];
+
+  // Initialize data
+  useEffect(() => {
+    setLoading(true);
+    setTimeout(() => {
+      const processedData = dummyData.map((d) => {
+        const dCopy = { ...d };
+        const date = new Date(parseInt(dCopy.when));
+        dCopy.date = date;
+        dCopy.value = 1;
+        return dCopy;
+      });
+      
+      setRawData(processedData);
+      setLoading(false);
+    }, 500);
+  }, []);
+
+  // Apply filters to data
   const applyFilters = (data: any[]) => {
-    let filtered = [...data];
+    let filtered = data;
 
     // View filter
     if (selectedView !== 'all') {
@@ -170,80 +243,12 @@ const UnifiedDashboard: React.FC = () => {
     return filtered;
   };
 
-  // Merge data from both APIs
-  useEffect(() => {
-    if (activityLoading || buildsonLoading || contribLoading) {
-      setLoading(true);
-      return;
-    }
-    
-    const merged: any[] = [];
-    
-    // Process activity data (reads, creates, modifies)
-    if (activityData?.getSocialInteractions) {
-      activityData.getSocialInteractions.forEach((activity: any) => {
-        const processedActivity = {
-          ...activity,
-          date: new Date(parseInt(activity.when)),
-          value: 1,
-          source: 'activity'
-        };
-        merged.push(processedActivity);
-      });
-    }
-
-    // Process buildson data
-    if (buildsonData?.buildsonLinks && contribData?.searchContributions) {
-      const contributions = contribData.searchContributions;
-      
-      buildsonData.buildsonLinks.forEach((link: any) => {
-        // Find source and target contributions
-        const sourceContrib = contributions.find((c: any) => c.id === link.from || c._id === link.from);
-        const targetContrib = contributions.find((c: any) => c.id === link.to || c._id === link.to);
-        
-        if (sourceContrib && targetContrib) {
-          // Get author information
-          const sourceAuthor = community.authors?.find((a: any) => sourceContrib.authors?.includes(a.id));
-          const targetAuthor = community.authors?.find((a: any) => targetContrib.authors?.includes(a.id));
-          
-          if (sourceAuthor && targetAuthor) {
-            const buildsonActivity = {
-              id: link.id,
-              when: link.created,
-              date: new Date(parseInt(link.created)),
-              type: 'buildson',
-              from: `${sourceAuthor.firstName} ${sourceAuthor.lastName}`,
-              fromId: sourceAuthor.id,
-              fromPseudo: sourceAuthor.pseudoName,
-              to: `${targetAuthor.firstName} ${targetAuthor.lastName}`,
-              toPseudo: targetAuthor.pseudoName,
-              title: sourceContrib.title || 'Untitled',
-              view: sourceContrib.view || 'Unknown',
-              data: sourceContrib.data || { body: '' },
-              ID: sourceContrib.id || sourceContrib._id,
-              targetID: targetContrib.id || targetContrib._id,
-              strength: 1, // You can calculate this based on your logic
-              value: 1,
-              source: 'buildson',
-              _from: { authors: sourceContrib.authors },
-              _to: { authors: targetContrib.authors }
-            };
-            merged.push(buildsonActivity);
-          }
-        }
-      });
-    }
-
-    setMergedData(merged);
-    setLoading(false);
-  }, [activityData, buildsonData, contribData, activityLoading, buildsonLoading, contribLoading]);
-
   // Update filtered data when filters change
   useEffect(() => {
-    const filtered = applyFilters(mergedData);
+    const filtered = applyFilters(rawData);
     setFilteredData(filtered);
     setSelectedNodeInfo(null); // Clear selection when data changes
-  }, [mergedData, selectedView, selectedGroup, selectedAuthor, dateRange]);
+  }, [rawData, selectedView, selectedGroup, selectedAuthor, dateRange]);
 
   // Process unified network data combining both activity and knowledge building
   const networkData = useMemo(() => {
@@ -262,7 +267,7 @@ const UnifiedDashboard: React.FC = () => {
       if (!userActivities.has(fromName)) {
         userActivities.set(fromName, {
           reads: 0, creates: 0, modifies: 0, buildons: 0,
-          activities: [], buildsonConnections: [], builtUponBy: [],
+          activities: [], buildsonConnections: [], builtUponBy: []
           totalActivity: 0, sharedPieces: new Set()
         });
       }
@@ -287,7 +292,7 @@ const UnifiedDashboard: React.FC = () => {
         if (!userActivities.has(toName)) {
           userActivities.set(toName, {
             reads: 0, creates: 0, modifies: 0, buildons: 0,
-            activities: [], buildsonConnections: [], builtUponBy: [],
+            activities: [], buildsonConnections: [], builtUponBy: []
             totalActivity: 0, sharedPieces: new Set()
           });
         }
@@ -349,6 +354,7 @@ const UnifiedDashboard: React.FC = () => {
       // Create edges
       if (fromName !== toName && item.to) {
         const edgeKey = `${fromName}-${toName}`;
+        
         if (edgeMap.has(edgeKey)) {
           const existingEdge = edgeMap.get(edgeKey);
           existingEdge.weight += 1;
@@ -410,7 +416,7 @@ const UnifiedDashboard: React.FC = () => {
         default: return '#718096';
       }
     }
-
+    
     function getEdgeTitle(item: any, fromName: string, toName: string): string {
       if (item.type === 'buildson') {
         return `${fromName} built on ${toName}'s work${item.strength ? ` (strength: ${item.strength})` : ''}`;
@@ -626,7 +632,7 @@ const UnifiedDashboard: React.FC = () => {
     const endIndex = startIndex + entriesPerPage;
     return activityRecordsData.slice(startIndex, endIndex);
   }, [activityRecordsData, currentPage, entriesPerPage]);
-  
+
   const totalPages = Math.ceil(activityRecordsData.length / entriesPerPage);
 
   if (loading) {
@@ -767,9 +773,9 @@ const UnifiedDashboard: React.FC = () => {
                     <FormLabel fontSize="sm">View</FormLabel>
                     <Select size="sm" value={selectedView} onChange={(e) => setSelectedView(e.target.value)}>
                       <option value="all">All Views</option>
-                      {community.views?.map(view => (
-                        <option key={view.id} value={view.title}>{view.title}</option>
-                      ))}
+                      <option value="Science Discussion">Science Discussion</option>
+                      <option value="Math Problems">Math Problems</option>
+                      <option value="History Class">History Class</option>
                     </Select>
                   </FormControl>
 
@@ -921,30 +927,39 @@ const UnifiedDashboard: React.FC = () => {
             {selectedNodeInfo && (
               <Card>
                 <CardHeader pb={2}>
-                  <Heading size="sm">Selected User: {selectedNodeInfo.label}</Heading>
+                  <HStack>
+                    <Icon as={InfoIcon} />
+                    <Heading size="sm">Selected User</Heading>
+                  </HStack>
                 </CardHeader>
                 <CardBody pt={0}>
-                  <VStack align="start" spacing={2}>
+                  <VStack align="start" spacing={3}>
+                    <VStack align="start" spacing={1}>
+                      <Text fontWeight="bold" fontSize="lg">{selectedNodeInfo.label}</Text>
+                      <Badge colorScheme={selectedNodeInfo.isCurrentUser ? 'red' : 'blue'}>
+                        {selectedNodeInfo.isCurrentUser ? 'You' : 'Peer'}
+                      </Badge>
+                    </VStack>
+
+                    <Divider />
+
                     {selectedNodeInfo.userActivity && (
                       <>
-                        <SimpleGrid columns={2} spacing={2} w="full">
-                          <Stat size="sm">
-                            <StatLabel fontSize="xs">Reads</StatLabel>
-                            <StatNumber fontSize="md">{selectedNodeInfo.userActivity.reads}</StatNumber>
-                          </Stat>
-                          <Stat size="sm">
-                            <StatLabel fontSize="xs">Creates</StatLabel>
-                            <StatNumber fontSize="md">{selectedNodeInfo.userActivity.creates}</StatNumber>
-                          </Stat>
-                          <Stat size="sm">
-                            <StatLabel fontSize="xs">Modifies</StatLabel>
-                            <StatNumber fontSize="md">{selectedNodeInfo.userActivity.modifies}</StatNumber>
-                          </Stat>
-                          <Stat size="sm">
-                            <StatLabel fontSize="xs">Buildsons</StatLabel>
-                            <StatNumber fontSize="md">{selectedNodeInfo.userActivity.buildons}</StatNumber>
-                          </Stat>
-                        </SimpleGrid>
+                        <VStack align="start" spacing={2} w="full">
+                          <Text fontWeight="bold" fontSize="sm">
+                            {selectedNodeInfo.label} has {selectedNodeInfo.userActivity.totalActivity} total activities.
+                          </Text>
+                          <SimpleGrid columns={2} spacing={2} w="full" fontSize="xs">
+                            <Text>📖 Reads: {selectedNodeInfo.userActivity.reads}</Text>
+                            <Text>✏️ Creates: {selectedNodeInfo.userActivity.creates}</Text>
+                            <Text>🔄 Modifies: {selectedNodeInfo.userActivity.modifies}</Text>
+                            <Text>🔗 Buildsons: {selectedNodeInfo.userActivity.buildons}</Text>
+                          </SimpleGrid>
+                          <Text fontSize="xs" color="gray.600">
+                            📄 Shared {selectedNodeInfo.userActivity.sharedPiecesCount} content pieces
+                          </Text>
+                        </VStack>
+                        <Divider />
                         
                         {selectedNodeInfo.userActivity.buildsonConnections?.length > 0 && (
                           <>
