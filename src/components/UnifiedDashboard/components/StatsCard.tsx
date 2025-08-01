@@ -8,7 +8,7 @@ import {
   Icon,
   useColorModeValue,
 } from '@chakra-ui/react';
-import { LucideIcon } from 'lucide-react';
+import { DivideIcon as LucideIcon } from 'lucide-react';
 
 interface StatsCardProps {
   icon: LucideIcon;
