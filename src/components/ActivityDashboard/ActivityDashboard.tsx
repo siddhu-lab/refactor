@@ -67,7 +67,6 @@ import {
   EditIcon,
   AddIcon,
   StarIcon
-} from '@chakra-ui/icons';
 import { 
   FiActivity, 
   FiUsers, 
@@ -182,7 +181,6 @@ const ActivityDashboard: React.FC = () => {
   const [hideNames, setHideNames] = useState(true);
   const [selectedRecord, setSelectedRecord] = useState<ActivityRecord | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedView, setSelectedView] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
   const [timeRange, setTimeRange] = useState('7');
   const { isOpen, onOpen, onClose } = useDisclosure();
