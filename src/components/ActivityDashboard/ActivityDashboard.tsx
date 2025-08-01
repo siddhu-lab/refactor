@@ -239,7 +239,7 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
 
       }, 100);
     }
-  }, []); // Empty dependency array since we're using dummy data
+  }, [data, hideNames, currentAuthor]); // Added missing dependencies
 
   // Separate useEffect for handling hideNames changes
   useEffect(() => {
@@ -267,7 +267,7 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
         setLabels(labelsData);
       }, 100);
     }
-  }, [hideNames]);
+  }, [hideNames, crossfilterInstance, currentAuthor, data.getSocialInteractions]); // Added missing dependencies
 
   const toggleNames = () => {
     if (isManager) {
@@ -456,9 +456,9 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
             <div className="dc-data-count">
               <span className="filter-count"></span> selected out of{' '}
               <span className="total-count"></span> records |{' '}
-              <a href="javascript:void(0)" onClick={resetFilters} className="reset-all-link">
+              <button type="button" onClick={resetFilters} className="reset-all-link">
                 Reset All
-              </a>
+              </button>
             </div>
           </div>
 

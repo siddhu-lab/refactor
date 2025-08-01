@@ -160,49 +160,7 @@ const UnifiedDashboard: React.FC = () => {
   const currentAuthor = { _id: community.author.id, role: loggedInPersonRole, name: me?.firstName+" "+me?.lastName, pseudoName: me?.pseudoName };
   const isManager = loggedInPersonRole === 'manager';
 
-  // Process activity data
-  const processedActivityData = useMemo(() => {
-    let parsed = dummySocialInteractions.map((d) => {
-      const dCopy = { ...d }; 
-      const date = new Date(parseInt(dCopy.when));
-      dCopy.date = date;
-      dCopy.year = new Date(date.getFullYear(), 0, 1);
-      dCopy.month = new Date(date.getFullYear(), date.getMonth(), 1);
-      dCopy.day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-      dCopy.week = new Date(date.getFullYear(), date.getMonth(), date.getDate() - date.getDay());
-      dCopy.value = 1;
-      dCopy.read = 0;
-      dCopy.modify = 0;
-      dCopy.buildson = 0;
-      dCopy[dCopy.type] = 1;
-      return dCopy;
-    });
-
-    // Apply filters
-    if (fromDate && toDate) {
-      const from = new Date(fromDate);
-      from.setHours(0, 0, 0, 0);
-      const to = new Date(toDate);
-      to.setHours(23, 59, 59, 999);
-      parsed = parsed.filter(item => item.date >= from && item.date <= to);
-    }
-
-    if (selectedView) {
-      parsed = parsed.filter(item => item.view === selectedView);
-    }
-
-    return parsed;
-  }, [fromDate, toDate, selectedView]);
-
-  // Generate network data based on mode
-  const networkData = useMemo(() => {
-    if (mode === 'buildson') {
-      return generateBuildsonNetworkData();
-    } else {
-      return generateActivityNetworkData();
-    }
-  }, [mode, processedActivityData, hideNames, currentAuthor, selectedGroup, selectedMember]);
-
+  // Define network data generation functions before they are used
   const generateBuildsonNetworkData = () => {
     const authors = {};
     const buildsonkey = {};
@@ -346,6 +304,49 @@ const UnifiedDashboard: React.FC = () => {
 
     return { nodes: userInfo, edges };
   };
+
+  // Process activity data
+  const processedActivityData = useMemo(() => {
+    let parsed = dummySocialInteractions.map((d) => {
+      const dCopy = { ...d }; 
+      const date = new Date(parseInt(dCopy.when));
+      dCopy.date = date;
+      dCopy.year = new Date(date.getFullYear(), 0, 1);
+      dCopy.month = new Date(date.getFullYear(), date.getMonth(), 1);
+      dCopy.day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      dCopy.week = new Date(date.getFullYear(), date.getMonth(), date.getDate() - date.getDay());
+      dCopy.value = 1;
+      dCopy.read = 0;
+      dCopy.modify = 0;
+      dCopy.buildson = 0;
+      dCopy[dCopy.type] = 1;
+      return dCopy;
+    });
+
+    // Apply filters
+    if (fromDate && toDate) {
+      const from = new Date(fromDate);
+      from.setHours(0, 0, 0, 0);
+      const to = new Date(toDate);
+      to.setHours(23, 59, 59, 999);
+      parsed = parsed.filter(item => item.date >= from && item.date <= to);
+    }
+
+    if (selectedView) {
+      parsed = parsed.filter(item => item.view === selectedView);
+    }
+
+    return parsed;
+  }, [fromDate, toDate, selectedView]);
+
+  // Generate network data based on mode
+  const networkData = useMemo(() => {
+    if (mode === 'buildson') {
+      return generateBuildsonNetworkData();
+    } else {
+      return generateActivityNetworkData();
+    }
+  }, [mode, processedActivityData, hideNames, currentAuthor, selectedGroup, selectedMember]);
 
   // Render network based on mode
   const renderNetwork = () => {
