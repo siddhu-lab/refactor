@@ -6,9 +6,6 @@ import {
   Text,
   Select,
   Button,
-  Card,
-  CardHeader,
-  CardBody,
   Heading,
   Badge,
   Switch,
@@ -35,7 +32,8 @@ import {
   RadioGroup,
   Radio,
   Stack,
-  Flex
+  Flex,
+  Container
 } from '@chakra-ui/react';
 import { InfoIcon, SettingsIcon } from '@chakra-ui/icons';
 import { Network } from 'vis-network';
@@ -552,43 +550,6 @@ const UnifiedDashboard: React.FC = () => {
     setHoveredEdgeInfo(null);
   };
 
-  // Get dynamic legend based on data type
-  const getLegendContent = () => {
-    if (dataType === 'activity') {
-      return {
-        title: "Activity Network",
-        nodeInfo: "Nodes: Username + Activity Count",
-        edgeInfo: "Edges: Interaction count between users",
-        hoverInfo: "Hover: View detailed activity tooltips",
-        nodeColors: [
-          { color: "red.500", label: "Current User" },
-          { color: "blue.500", label: "Other Users" }
-        ],
-        edgeColors: [
-          { color: "green.500", label: "Read" },
-          { color: "yellow.500", label: "Modify" },
-          { color: "purple.500", label: "Create" }
-        ]
-      };
-    } else {
-      return {
-        title: "Knowledge Building Network",
-        nodeInfo: "Nodes: Username + Buildson Count",
-        edgeInfo: "Edges: Knowledge building connections",
-        hoverInfo: "Hover: View buildson relationship details",
-        nodeColors: [
-          { color: "red.500", label: "Current User" },
-          { color: "blue.500", label: "Other Users" }
-        ],
-        edgeColors: [
-          { color: "red.500", label: "Buildson" }
-        ]
-      };
-    }
-  };
-
-  const legendContent = getLegendContent();
-
   if (loading) {
     return (
       <Center h="100vh">
@@ -601,43 +562,52 @@ const UnifiedDashboard: React.FC = () => {
   }
 
   return (
-    <Box bg={mainBgColor} h="100vh" overflow="hidden">
-      <Grid templateColumns="1fr 400px" h="100%">
-        {/* Main Graph Area */}
-        <GridItem bg={bgColor} position="relative">
-          {/* Graph Header */}
-          <Box p={4} borderBottom="1px" borderColor={borderColor} bg={bgColor}>
-            <Flex justify="space-between" align="center">
-              <VStack align="start" spacing={1}>
-                <Heading size="md" color="blue.600">
-                  {legendContent.title}
-                </Heading>
-                <HStack spacing={4} fontSize="sm" color="gray.600">
-                  <Text>
-                    <Badge colorScheme="blue" mr={1}>{networkData.stats.totalNodes}</Badge>
-                    Users
-                  </Text>
-                  <Text>
-                    <Badge colorScheme="green" mr={1}>{networkData.stats.totalConnections}</Badge>
-                    Connections
-                  </Text>
-                  <Text>
-                    <Badge colorScheme="purple" mr={1}>{networkData.stats.mostActiveUser}</Badge>
-                    Most Active
-                  </Text>
-                </HStack>
-              </VStack>
-              
+    <Container maxW="100%" p={0} h="100vh" bg={mainBgColor}>
+      {/* Header */}
+      <Box bg="white" borderBottom="1px solid" borderColor="gray.200" px={6} py={4} shadow="sm">
+        <Flex justify="space-between" align="center">
+          <VStack align="start" spacing={1}>
+            <Heading size="lg" color="gray.800" fontWeight="600">
+              Knowledge Forum Analytics
+            </Heading>
+            <HStack spacing={6} fontSize="sm" color="gray.600">
               <HStack>
-                <Button size="sm" onClick={resetAllFilters} colorScheme="red" variant="outline">
-                  Reset Filters
-                </Button>
+                <Badge colorScheme="blue" variant="subtle">{networkData.stats.totalNodes}</Badge>
+                <Text>Users</Text>
               </HStack>
-            </Flex>
-          </Box>
+              <HStack>
+                <Badge colorScheme="green" variant="subtle">{networkData.stats.totalConnections}</Badge>
+                <Text>Connections</Text>
+              </HStack>
+            </HStack>
+          </VStack>
+          
+          <HStack spacing={6}>
+            <HStack spacing={4}>
+              <Text fontSize="sm" fontWeight="500" color="gray.700">Data Type:</Text>
+              <RadioGroup value={dataType} onChange={(value) => setDataType(value as 'activity' | 'knowledge')}>
+                <HStack spacing={4}>
+                  <Radio value="activity" colorScheme="blue" size="sm">
+                    <Text fontSize="sm" fontWeight="500">Activity Analysis</Text>
+                  </Radio>
+                  <Radio value="knowledge" colorScheme="purple" size="sm">
+                    <Text fontSize="sm" fontWeight="500">Knowledge Building</Text>
+                  </Radio>
+                </HStack>
+              </RadioGroup>
+            </HStack>
+            
+            <Button size="sm" onClick={resetAllFilters} colorScheme="red" variant="outline">
+              Reset Filters
+            </Button>
+          </HStack>
+        </Flex>
+      </Box>
 
-          {/* Graph Container */}
-          <Box h="calc(100vh - 80px)" position="relative">
+      <Grid templateColumns="1fr 350px" h="calc(100vh - 80px)">
+        {/* Main Graph Area */}
+        <GridItem bg="white" position="relative" borderRight="1px solid" borderColor="gray.200">
+          <Box h="100%" position="relative">
             <Box ref={networkRef} w="100%" h="100%" />
             
             {/* Hover Edge Info Overlay */}
@@ -653,6 +623,7 @@ const UnifiedDashboard: React.FC = () => {
                 fontSize="sm"
                 maxW="300px"
                 zIndex={1000}
+                shadow="lg"
               >
                 <Text fontWeight="bold">{hoveredEdgeInfo.from} → {hoveredEdgeInfo.to}</Text>
                 <Text>Interactions: {hoveredEdgeInfo.interactions.length}</Text>
@@ -672,42 +643,92 @@ const UnifiedDashboard: React.FC = () => {
         </GridItem>
 
         {/* Right Sidebar */}
-        <GridItem bg={sidebarBg} borderLeft="1px" borderColor={borderColor} overflowY="auto">
-          <VStack spacing={4} p={4} align="stretch">
-            {/* Data Type Selection */}
-            <Card>
-              <CardHeader pb={2}>
-                <Heading size="sm">Data Type</Heading>
-              </CardHeader>
-              <CardBody pt={0}>
-                <RadioGroup value={dataType} onChange={(value) => setDataType(value as 'activity' | 'knowledge')}>
-                  <Stack spacing={3}>
-                    <Radio value="activity" colorScheme="blue">
-                      <VStack align="start" spacing={0} ml={2}>
-                        <Text fontWeight="bold" fontSize="sm">Activity Analysis</Text>
-                        <Text fontSize="xs" color="gray.600">Reading, creating, modifying content</Text>
-                      </VStack>
-                    </Radio>
-                    <Radio value="knowledge" colorScheme="purple">
-                      <VStack align="start" spacing={0} ml={2}>
-                        <Text fontWeight="bold" fontSize="sm">Knowledge Building</Text>
-                        <Text fontSize="xs" color="gray.600">Ideas building upon each other</Text>
-                      </VStack>
-                    </Radio>
-                  </Stack>
-                </RadioGroup>
-              </CardBody>
-            </Card>
+        <GridItem bg="gray.50" overflowY="auto">
+          <VStack spacing={0} align="stretch" h="100%">
+            {/* Selected Node Info - Fixed at top */}
+            {selectedNodeInfo && (
+              <Box bg="white" p={4} borderBottom="1px solid" borderColor="gray.200" shadow="sm">
+                <VStack align="start" spacing={3}>
+                  <HStack justify="space-between" w="100%">
+                    <VStack align="start" spacing={1}>
+                      <Text fontWeight="600" fontSize="lg" color="gray.800">{selectedNodeInfo.label}</Text>
+                      <Badge colorScheme={selectedNodeInfo.isCurrentUser ? 'red' : 'blue'} variant="subtle">
+                        {selectedNodeInfo.isCurrentUser ? 'You' : 'Peer'}
+                      </Badge>
+                    </VStack>
+                    <Button size="xs" variant="ghost" onClick={() => setSelectedNodeInfo(null)}>×</Button>
+                  </HStack>
+
+                  {dataType === 'activity' && selectedNodeInfo.userActivity && (
+                    <VStack align="start" spacing={2} w="full">
+                      <Text fontWeight="500" fontSize="sm" color="gray.700">
+                        {selectedNodeInfo.interactions} total activities
+                      </Text>
+                      <SimpleGrid columns={3} spacing={2} w="full" fontSize="xs">
+                        <VStack spacing={1}>
+                          <Text fontWeight="500" color="green.600">{selectedNodeInfo.userActivity.reads}</Text>
+                          <Text color="gray.600">Reads</Text>
+                        </VStack>
+                        <VStack spacing={1}>
+                          <Text fontWeight="500" color="purple.600">{selectedNodeInfo.userActivity.creates}</Text>
+                          <Text color="gray.600">Creates</Text>
+                        </VStack>
+                        <VStack spacing={1}>
+                          <Text fontWeight="500" color="orange.600">{selectedNodeInfo.userActivity.modifies}</Text>
+                          <Text color="gray.600">Modifies</Text>
+                        </VStack>
+                      </SimpleGrid>
+                    </VStack>
+                  )}
+
+                  {dataType === 'knowledge' && selectedNodeInfo.userActivity && (
+                    <VStack align="start" spacing={2} w="full">
+                      <Text fontWeight="500" fontSize="sm" color="gray.700">
+                        {selectedNodeInfo.userActivity.creates || 0} notes written
+                      </Text>
+                      
+                      {selectedNodeInfo.userActivity.buildsonConnections?.length > 0 && (
+                        <Box w="full">
+                          <Text fontWeight="500" fontSize="xs" color="gray.600" mb={1}>
+                            Built onto {selectedNodeInfo.userActivity.buildsonConnections.length} notes
+                          </Text>
+                          <Box maxH="60px" overflowY="auto">
+                            {selectedNodeInfo.userActivity.buildsonConnections.map((conn, idx) => (
+                              <Text key={idx} fontSize="xs" color="gray.500">
+                                • Strength {conn.strength} - {conn.target}
+                              </Text>
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
+
+                      {selectedNodeInfo.userActivity.builtUponBy?.length > 0 && (
+                        <Box w="full">
+                          <Text fontWeight="500" fontSize="xs" color="gray.600" mb={1}>
+                            {selectedNodeInfo.userActivity.builtUponBy.length} notes built upon their work
+                          </Text>
+                          <Box maxH="60px" overflowY="auto">
+                            {selectedNodeInfo.userActivity.builtUponBy.map((conn, idx) => (
+                              <Text key={idx} fontSize="xs" color="gray.500">
+                                • Strength {conn.strength} - {conn.source}
+                              </Text>
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
+                    </VStack>
+                  )}
+                </VStack>
+              </Box>
+            )}
 
             {/* Filters */}
-            <Card>
-              <CardHeader pb={2}>
-                <Heading size="sm">Filters</Heading>
-              </CardHeader>
-              <CardBody pt={0}>
+            <Box bg="white" p={4} borderBottom="1px solid" borderColor="gray.200">
+              <VStack spacing={3} align="stretch">
+                <Text fontWeight="600" fontSize="md" color="gray.800">Filters</Text>
                 <VStack spacing={3}>
                   <FormControl>
-                    <FormLabel fontSize="sm">View</FormLabel>
+                    <FormLabel fontSize="sm" fontWeight="500" color="gray.700">View</FormLabel>
                     <Select size="sm" value={selectedView} onChange={(e) => setSelectedView(e.target.value)}>
                       <option value="all">All Views</option>
                       <option value="Science Discussion">Science Discussion</option>
@@ -717,7 +738,7 @@ const UnifiedDashboard: React.FC = () => {
                   </FormControl>
 
                   <FormControl>
-                    <FormLabel fontSize="sm">Group</FormLabel>
+                    <FormLabel fontSize="sm" fontWeight="500" color="gray.700">Group</FormLabel>
                     <Select size="sm" value={selectedGroup} onChange={(e) => setSelectedGroup(e.target.value)}>
                       <option value="all">All Groups</option>
                       {community.groups?.map(group => (
@@ -727,7 +748,7 @@ const UnifiedDashboard: React.FC = () => {
                   </FormControl>
 
                   <FormControl>
-                    <FormLabel fontSize="sm">Author</FormLabel>
+                    <FormLabel fontSize="sm" fontWeight="500" color="gray.700">Author</FormLabel>
                     <Select size="sm" value={selectedAuthor} onChange={(e) => setSelectedAuthor(e.target.value)}>
                       <option value="all">All Authors</option>
                       {community.authors?.map(author => (
@@ -739,7 +760,7 @@ const UnifiedDashboard: React.FC = () => {
                   </FormControl>
 
                   <FormControl>
-                    <FormLabel fontSize="sm">Time Range</FormLabel>
+                    <FormLabel fontSize="sm" fontWeight="500" color="gray.700">Time Range</FormLabel>
                     <Select size="sm" value={dateRange} onChange={(e) => setDateRange(e.target.value)}>
                       <option value="all">All Time</option>
                       <option value="week">Last Week</option>
@@ -748,21 +769,19 @@ const UnifiedDashboard: React.FC = () => {
                     </Select>
                   </FormControl>
                 </VStack>
-              </CardBody>
-            </Card>
+              </VStack>
+            </Box>
 
             {/* Graph Settings */}
-            <Card>
-              <CardHeader pb={2}>
+            <Box bg="white" p={4} borderBottom="1px solid" borderColor="gray.200">
+              <VStack spacing={3} align="stretch">
                 <HStack>
-                  <Icon as={SettingsIcon} />
-                  <Heading size="sm">Graph Settings</Heading>
+                  <Icon as={SettingsIcon} color="gray.600" />
+                  <Text fontWeight="600" fontSize="md" color="gray.800">Graph Settings</Text>
                 </HStack>
-              </CardHeader>
-              <CardBody pt={0}>
                 <VStack spacing={4}>
                   <FormControl>
-                    <FormLabel fontSize="sm">Layout</FormLabel>
+                    <FormLabel fontSize="sm" fontWeight="500" color="gray.700">Layout</FormLabel>
                     <Select size="sm" value={graphLayout} onChange={(e) => setGraphLayout(e.target.value as any)}>
                       <option value="force">Force-Directed</option>
                       <option value="hierarchical">Hierarchical</option>
@@ -771,7 +790,7 @@ const UnifiedDashboard: React.FC = () => {
                   </FormControl>
 
                   <FormControl>
-                    <FormLabel fontSize="sm">Node Size: {nodeSize}</FormLabel>
+                    <FormLabel fontSize="sm" fontWeight="500" color="gray.700">Node Size: {nodeSize}</FormLabel>
                     <Slider value={nodeSize} onChange={setNodeSize} min={15} max={50} step={5}>
                       <SliderTrack>
                         <SliderFilledTrack />
@@ -781,7 +800,7 @@ const UnifiedDashboard: React.FC = () => {
                   </FormControl>
 
                   <FormControl>
-                    <FormLabel fontSize="sm">Connection Width: {edgeWidth}</FormLabel>
+                    <FormLabel fontSize="sm" fontWeight="500" color="gray.700">Connection Width: {edgeWidth}</FormLabel>
                     <Slider value={edgeWidth} onChange={setEdgeWidth} min={1} max={8}>
                       <SliderTrack>
                         <SliderFilledTrack />
@@ -791,7 +810,7 @@ const UnifiedDashboard: React.FC = () => {
                   </FormControl>
 
                   <FormControl>
-                    <FormLabel fontSize="sm">Node Spacing: {nodeSpacing}</FormLabel>
+                    <FormLabel fontSize="sm" fontWeight="500" color="gray.700">Node Spacing: {nodeSpacing}</FormLabel>
                     <Slider value={nodeSpacing} onChange={setNodeSpacing} min={100} max={400} step={50}>
                       <SliderTrack>
                         <SliderFilledTrack />
@@ -800,9 +819,9 @@ const UnifiedDashboard: React.FC = () => {
                     </Slider>
                   </FormControl>
 
-                  <SimpleGrid columns={2} spacing={2}>
+                  <SimpleGrid columns={2} spacing={3}>
                     <FormControl display="flex" alignItems="center" flexDirection="column">
-                      <FormLabel mb="1" fontSize="xs">Show Names</FormLabel>
+                      <FormLabel mb="1" fontSize="xs" fontWeight="500" color="gray.700">Show Names</FormLabel>
                       <Switch 
                         size="sm"
                         isChecked={!hideNames} 
@@ -812,7 +831,7 @@ const UnifiedDashboard: React.FC = () => {
                     </FormControl>
 
                     <FormControl display="flex" alignItems="center" flexDirection="column">
-                      <FormLabel mb="1" fontSize="xs">Directions</FormLabel>
+                      <FormLabel mb="1" fontSize="xs" fontWeight="500" color="gray.700">Directions</FormLabel>
                       <Switch 
                         size="sm"
                         isChecked={showDirections} 
@@ -821,7 +840,7 @@ const UnifiedDashboard: React.FC = () => {
                     </FormControl>
 
                     <FormControl display="flex" alignItems="center" flexDirection="column">
-                      <FormLabel mb="1" fontSize="xs">Node Labels</FormLabel>
+                      <FormLabel mb="1" fontSize="xs" fontWeight="500" color="gray.700">Node Labels</FormLabel>
                       <Switch 
                         size="sm"
                         isChecked={showNodeLabels} 
@@ -830,7 +849,7 @@ const UnifiedDashboard: React.FC = () => {
                     </FormControl>
 
                     <FormControl display="flex" alignItems="center" flexDirection="column">
-                      <FormLabel mb="1" fontSize="xs">Edge Labels</FormLabel>
+                      <FormLabel mb="1" fontSize="xs" fontWeight="500" color="gray.700">Edge Labels</FormLabel>
                       <Switch 
                         size="sm"
                         isChecked={showEdgeLabels} 
@@ -839,147 +858,64 @@ const UnifiedDashboard: React.FC = () => {
                     </FormControl>
 
                     <FormControl display="flex" alignItems="center" flexDirection="column">
-                      <FormLabel mb="1" fontSize="xs">Smooth Edges</FormLabel>
+                      <FormLabel mb="1" fontSize="xs" fontWeight="500" color="gray.700">Smooth Edges</FormLabel>
                       <Switch 
                         size="sm"
                         isChecked={edgeSmoothing} 
                         onChange={(e) => setEdgeSmoothing(e.target.checked)}
                       />
                     </FormControl>
-
-                    <FormControl display="flex" alignItems="center" flexDirection="column">
-                      <FormLabel mb="1" fontSize="xs">Cluster Types</FormLabel>
-                      <Switch 
-                        size="sm"
-                        isChecked={clusterByType} 
-                        onChange={(e) => setClusterByType(e.target.checked)}
-                      />
-                    </FormControl>
                   </SimpleGrid>
                 </VStack>
-              </CardBody>
-            </Card>
-
-            {/* Selected Node Info */}
-            {selectedNodeInfo && (
-              <Card>
-                <CardHeader pb={2}>
-                  <HStack>
-                    <Icon as={InfoIcon} />
-                    <Heading size="sm">Selected User</Heading>
-                  </HStack>
-                </CardHeader>
-                <CardBody pt={0}>
-                  <VStack align="start" spacing={3}>
-                    <VStack align="start" spacing={1}>
-                      <Text fontWeight="bold" fontSize="lg">{selectedNodeInfo.label}</Text>
-                      <Badge colorScheme={selectedNodeInfo.isCurrentUser ? 'red' : 'blue'}>
-                        {selectedNodeInfo.isCurrentUser ? 'You' : 'Peer'}
-                      </Badge>
-                    </VStack>
-
-                    <Divider />
-
-                    {dataType === 'activity' && selectedNodeInfo.userActivity && (
-                      <>
-                        <VStack align="start" spacing={2} w="full">
-                          <Text fontWeight="bold" fontSize="sm">
-                            {selectedNodeInfo.label} performed {selectedNodeInfo.interactions} activities.
-                          </Text>
-                          <SimpleGrid columns={2} spacing={2} w="full" fontSize="xs">
-                            <Text>📖 Reads: {selectedNodeInfo.userActivity.reads}</Text>
-                            <Text>✏️ Creates: {selectedNodeInfo.userActivity.creates}</Text>
-                            <Text>🔄 Modifies: {selectedNodeInfo.userActivity.modifies}</Text>
-                          </SimpleGrid>
-                        </VStack>
-                        <Divider />
-                      </>
-                    )}
-
-                    {dataType === 'knowledge' && selectedNodeInfo.userActivity && (
-                      <>
-                        <VStack align="start" spacing={2} w="full">
-                          <Text fontWeight="bold" fontSize="sm">
-                            {selectedNodeInfo.label} wrote {selectedNodeInfo.userActivity.creates || 0} notes.
-                          </Text>
-                          
-                          {selectedNodeInfo.userActivity.buildsonConnections?.length > 0 && (
-                            <>
-                              <Text fontWeight="bold" fontSize="sm">
-                                {selectedNodeInfo.label} built onto {selectedNodeInfo.userActivity.buildsonConnections.length} notes:
-                              </Text>
-                              <VStack align="start" spacing={1} maxH="120px" overflowY="auto" w="full">
-                                {selectedNodeInfo.userActivity.buildsonConnections.map((conn, idx) => (
-                                  <Text key={idx} fontSize="xs">
-                                    • {conn.strength} by {conn.target}
-                                  </Text>
-                                ))}
-                              </VStack>
-                            </>
-                          )}
-
-                          {selectedNodeInfo.userActivity.builtUponBy?.length > 0 && (
-                            <>
-                              <Text fontWeight="bold" fontSize="sm">
-                                {selectedNodeInfo.userActivity.builtUponBy.length} note{selectedNodeInfo.userActivity.builtUponBy.length > 1 ? 's were' : ' was'} built onto notes written by {selectedNodeInfo.label}:
-                              </Text>
-                              <VStack align="start" spacing={1} maxH="120px" overflowY="auto" w="full">
-                                {selectedNodeInfo.userActivity.builtUponBy.map((conn, idx) => (
-                                  <Text key={idx} fontSize="xs">
-                                    • {conn.strength} by {conn.source}
-                                  </Text>
-                                ))}
-                              </VStack>
-                            </>
-                          )}
-                        </VStack>
-                        <Divider />
-                      </>
-                    )}
-
-                    <SimpleGrid columns={2} spacing={2} w="full">
-                      <Stat size="sm">
-                        <StatLabel fontSize="xs">Total Activity</StatLabel>
-                        <StatNumber fontSize="md">{selectedNodeInfo.interactions}</StatNumber>
-                      </Stat>
-                      <Stat size="sm">
-                        <StatLabel fontSize="xs">Connections</StatLabel>
-                        <StatNumber fontSize="md">{selectedNodeInfo.connectedEdges}</StatNumber>
-                      </Stat>
-                    </SimpleGrid>
-                  </VStack>
-                </CardBody>
-              </Card>
-            )}
+              </VStack>
+            </Box>
 
             {/* Legend */}
-            <Card>
-              <CardHeader pb={2}>
-                <Heading size="sm">Legend</Heading>
-              </CardHeader>
-              <CardBody pt={0}>
+            <Box bg="white" p={4} flex="1">
+              <VStack spacing={3} align="stretch">
+                <Text fontWeight="600" fontSize="md" color="gray.800">Legend</Text>
                 <VStack align="start" spacing={2} fontSize="xs">
-                  <Text fontWeight="bold">{legendContent.nodeInfo}</Text>
-                  <Text fontWeight="bold">{legendContent.edgeInfo}</Text>
-                  <Text fontWeight="bold">{legendContent.hoverInfo}</Text>
+                  <Text fontWeight="500" color="gray.700">
+                    {dataType === 'activity' ? 'Nodes: Username + Activity Count' : 'Nodes: Username + Buildson Count'}
+                  </Text>
+                  <Text fontWeight="500" color="gray.700">
+                    {dataType === 'activity' ? 'Edges: Interaction count between users' : 'Edges: Knowledge building connections'}
+                  </Text>
                   
                   <Divider />
-                  <Text fontWeight="bold">Node Colors:</Text>
-                  {legendContent.nodeColors.map((item, idx) => (
-                    <HStack key={idx}>
-                      <Box w={3} h={3} bg={item.color} borderRadius="full" />
-                      <Text>{item.label}</Text>
-                    </HStack>
-                  ))}
+                  <Text fontWeight="500" color="gray.700">Node Colors:</Text>
+                  <HStack>
+                    <Box w={3} h={3} bg="red.500" borderRadius="full" />
+                    <Text>Current User</Text>
+                  </HStack>
+                  <HStack>
+                    <Box w={3} h={3} bg="blue.500" borderRadius="full" />
+                    <Text>Other Users</Text>
+                  </HStack>
                   
                   <Divider />
-                  <Text fontWeight="bold">Edge Colors:</Text>
-                  {legendContent.edgeColors.map((item, idx) => (
-                    <HStack key={idx}>
-                      <Box w={3} h={0.5} bg={item.color} />
-                      <Text>{item.label}</Text>
+                  <Text fontWeight="500" color="gray.700">Edge Colors:</Text>
+                  {dataType === 'activity' ? (
+                    <>
+                      <HStack>
+                        <Box w={3} h={0.5} bg="green.500" />
+                        <Text>Read</Text>
+                      </HStack>
+                      <HStack>
+                        <Box w={3} h={0.5} bg="yellow.500" />
+                        <Text>Modify</Text>
+                      </HStack>
+                      <HStack>
+                        <Box w={3} h={0.5} bg="purple.500" />
+                        <Text>Create</Text>
+                      </HStack>
+                    </>
+                  ) : (
+                    <HStack>
+                      <Box w={3} h={0.5} bg="red.500" />
+                      <Text>Buildson</Text>
                     </HStack>
-                  ))}
+                  )}
 
                   <Alert status="info" size="sm" mt={2}>
                     <AlertIcon />
@@ -988,12 +924,12 @@ const UnifiedDashboard: React.FC = () => {
                     </AlertDescription>
                   </Alert>
                 </VStack>
-              </CardBody>
-            </Card>
+              </VStack>
+            </Box>
           </VStack>
         </GridItem>
       </Grid>
-    </Box>
+    </Container>
   );
 };
 
