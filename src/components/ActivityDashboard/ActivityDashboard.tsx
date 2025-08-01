@@ -332,7 +332,7 @@ const ActivityDashboard: React.FC = () => {
   };
 
   return (
-    <Box bg={bgColor} minH="100vh" p={6}>
+    <Box bg={bgColor} p={6} overflowY="auto" maxH="100vh">
       <Container maxW="container.xl">
         <VStack spacing={8} align="stretch">
           {/* Header */}
@@ -538,6 +538,7 @@ const ActivityDashboard: React.FC = () => {
                     </Flex>
 
                     <VStack spacing={4} align="stretch" maxH="600px" overflowY="auto">
+                    <VStack spacing={4} align="stretch">
                       {filteredData.length === 0 ? (
                         <Box textAlign="center" py={12}>
                           <Icon as={FiActivity} boxSize={12} color={mutedColor} mb={4} />
@@ -610,7 +611,7 @@ const ActivityDashboard: React.FC = () => {
 
             {/* Sidebar */}
             <GridItem>
-              <VStack spacing={6} align="stretch">
+              <VStack spacing={6} align="stretch" maxH="calc(100vh - 200px)" overflowY="auto">
                 {/* Top Users */}
                 <Card bg={cardBg} shadow="lg" borderRadius="xl">
                   <CardBody>
