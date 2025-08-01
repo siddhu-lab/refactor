@@ -67,6 +67,7 @@ import {
   EditIcon,
   AddIcon,
   StarIcon
+} from '@chakra-ui/icons';
 import { 
   FiActivity, 
   FiUsers, 
@@ -548,7 +549,7 @@ const ActivityDashboard: React.FC = () => {
                           size="sm"
                           colorScheme="green"
                           variant="outline"
-                          onClick={() => window.dc?.filterAll?.(); window.dc?.renderAll?.()}
+                          onClick={() => { window.dc?.filterAll?.(); window.dc?.renderAll?.(); }}
                         >
                           Reset All Filters
                         </Button>
