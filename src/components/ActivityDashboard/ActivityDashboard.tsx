@@ -538,71 +538,72 @@ const ActivityDashboard: React.FC = () => {
                     </Flex>
 
                     <VStack spacing={4} align="stretch" maxH="600px" overflowY="auto">
-                    <VStack spacing={4} align="stretch">
-                      {filteredData.length === 0 ? (
-                        <Box textAlign="center" py={12}>
-                          <Icon as={FiActivity} boxSize={12} color={mutedColor} mb={4} />
-                          <Text color={mutedColor} fontSize="lg">No activities found</Text>
-                          <Text color={mutedColor} fontSize="sm">Try adjusting your filters</Text>
-                        </Box>
-                      ) : (
-                        filteredData.map((record) => {
-                          const displayName = hideNames && record.fromId !== currentAuthor._id 
-                            ? record.fromPseudo 
-                            : record.from;
-                          
-                          return (
-                            <Card
-                              key={record.id}
-                              variant="outline"
-                              cursor="pointer"
-                              onClick={() => handleRecordClick(record)}
-                              _hover={{ shadow: "md", transform: "translateY(-2px)" }}
-                              transition="all 0.2s"
-                              borderRadius="lg"
-                            >
-                              <CardBody>
-                                <Flex align="center" justify="space-between">
-                                  <HStack spacing={4} flex={1}>
-                                    <Icon
-                                      as={getActionIcon(record.type)}
-                                      boxSize={5}
-                                      color={`${getActionColor(record.type)}.500`}
-                                    />
-                                    
-                                    <VStack align="start" spacing={1} flex={1}>
-                                      <Text fontWeight="semibold" color={textColor} noOfLines={1}>
-                                        {record.title}
-                                      </Text>
-                                      <HStack spacing={2}>
-                                        <Avatar size="xs" name={displayName} />
-                                        <Text fontSize="sm" color={mutedColor}>
-                                          {displayName}
+                      <VStack spacing={4} align="stretch">
+                        {filteredData.length === 0 ? (
+                          <Box textAlign="center" py={12}>
+                            <Icon as={FiActivity} boxSize={12} color={mutedColor} mb={4} />
+                            <Text color={mutedColor} fontSize="lg">No activities found</Text>
+                            <Text color={mutedColor} fontSize="sm">Try adjusting your filters</Text>
+                          </Box>
+                        ) : (
+                          filteredData.map((record) => {
+                            const displayName = hideNames && record.fromId !== currentAuthor._id 
+                              ? record.fromPseudo 
+                              : record.from;
+                            
+                            return (
+                              <Card
+                                key={record.id}
+                                variant="outline"
+                                cursor="pointer"
+                                onClick={() => handleRecordClick(record)}
+                                _hover={{ shadow: "md", transform: "translateY(-2px)" }}
+                                transition="all 0.2s"
+                                borderRadius="lg"
+                              >
+                                <CardBody>
+                                  <Flex align="center" justify="space-between">
+                                    <HStack spacing={4} flex={1}>
+                                      <Icon
+                                        as={getActionIcon(record.type)}
+                                        boxSize={5}
+                                        color={`${getActionColor(record.type)}.500`}
+                                      />
+                                      
+                                      <VStack align="start" spacing={1} flex={1}>
+                                        <Text fontWeight="semibold" color={textColor} noOfLines={1}>
+                                          {record.title}
                                         </Text>
-                                        <Badge colorScheme={getActionColor(record.type)} size="sm">
-                                          {record.type}
-                                        </Badge>
-                                        <Badge variant="outline" size="sm">
-                                          {record.view}
-                                        </Badge>
-                                      </HStack>
+                                        <HStack spacing={2}>
+                                          <Avatar size="xs" name={displayName} />
+                                          <Text fontSize="sm" color={mutedColor}>
+                                            {displayName}
+                                          </Text>
+                                          <Badge colorScheme={getActionColor(record.type)} size="sm">
+                                            {record.type}
+                                          </Badge>
+                                          <Badge variant="outline" size="sm">
+                                            {record.view}
+                                          </Badge>
+                                        </HStack>
+                                      </VStack>
+                                    </HStack>
+                                    
+                                    <VStack align="end" spacing={1}>
+                                      <Text fontSize="xs" color={mutedColor}>
+                                        {record.date.toLocaleDateString()}
+                                      </Text>
+                                      <Text fontSize="xs" color={mutedColor}>
+                                        {record.date.toLocaleTimeString()}
+                                      </Text>
                                     </VStack>
-                                  </HStack>
-                                  
-                                  <VStack align="end" spacing={1}>
-                                    <Text fontSize="xs" color={mutedColor}>
-                                      {record.date.toLocaleDateString()}
-                                    </Text>
-                                    <Text fontSize="xs" color={mutedColor}>
-                                      {record.date.toLocaleTimeString()}
-                                    </Text>
-                                  </VStack>
-                                </Flex>
-                              </CardBody>
-                            </Card>
-                          );
-                        })
-                      )}
+                                  </Flex>
+                                </CardBody>
+                              </Card>
+                            );
+                          })
+                        )}
+                      </VStack>
                     </VStack>
                   </CardBody>
                 </Card>
