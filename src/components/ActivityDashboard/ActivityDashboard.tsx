@@ -61,7 +61,7 @@ import {
 import dashboardContext from '../../context/dashboard.js';
 import StatisticsTable from './StatisticsTable.tsx';
 import MainDataTable from './MainDataTable/MainDataTable.tsx';
-import ViewsDropdown from './ViewsDropdown';
+import ViewsDropdown from './ViewsDropdown.tsx';
 import './ActivityDashboard.css';
 import './dc.css';
 
