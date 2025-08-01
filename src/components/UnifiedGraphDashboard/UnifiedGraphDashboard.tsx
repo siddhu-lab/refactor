@@ -39,6 +39,7 @@ import {
 } from '@chakra-ui/react';
 import { InfoIcon, SettingsIcon } from '@chakra-ui/icons';
 import { Network } from 'vis-network';
+import * as d3 from 'd3';
 import dashboardContext from '../../context/dashboard.js';
 
 const UnifiedDashboard: React.FC = () => {
@@ -85,6 +86,15 @@ const UnifiedDashboard: React.FC = () => {
   // Selection State
   const [selectedNodeInfo, setSelectedNodeInfo] = useState<any>(null);
   const [hoveredEdgeInfo, setHoveredEdgeInfo] = useState<any>(null);
+  
+  // Activity Analysis Options
+  const [activityOptions, setActivityOptions] = useState<string[]>([]);
+  const { isOpen: isActivitySectionOpen, onToggle: toggleActivitySection } = useDisclosure();
+  
+  // Bottom section refs
+  const statsChartRef = useRef<HTMLDivElement>(null);
+  const timelineChartRef = useRef<HTMLDivElement>(null);
+  const readingPatternRef = useRef<HTMLDivElement>(null);
 
   const isManager = role === 'manager';
   const currentUserName = `${me?.firstName} ${me?.lastName}`;
@@ -552,6 +562,238 @@ const UnifiedDashboard: React.FC = () => {
     setHoveredEdgeInfo(null);
   };
 
+  // Handle activity options change
+  const handleActivityOptionsChange = (values: string[]) => {
+    setActivityOptions(values);
+    if (values.length > 0 && !isActivitySectionOpen) {
+      toggleActivitySection();
+    } else if (values.length === 0 && isActivitySectionOpen) {
+      toggleActivitySection();
+    }
+  };
+
+  // Create user activity stats chart
+  const createUserActivityStats = useCallback(() => {
+    if (!statsChartRef.current || !filteredData.length) return;
+
+    const container = d3.select(statsChartRef.current);
+    container.selectAll('*').remove();
+
+    // Process data for user activity stats
+    const userStats = new Map();
+    filteredData.forEach(item => {
+      const userName = hideNames && item.fromId !== community.author.id ? item.fromPseudo : item.from;
+      if (!userStats.has(userName)) {
+        userStats.set(userName, { reads: 0, creates: 0, modifies: 0, total: 0 });
+      }
+      const stats = userStats.get(userName);
+      if (item.type === 'read') stats.reads++;
+      else if (item.type === 'created') stats.creates++;
+      else if (item.type === 'modified') stats.modifies++;
+      stats.total++;
+    });
+
+    const data = Array.from(userStats.entries()).map(([user, stats]) => ({ user, ...stats }));
+    
+    const margin = { top: 20, right: 30, bottom: 40, left: 100 };
+    const width = 600 - margin.left - margin.right;
+    const height = Math.max(300, data.length * 25) - margin.top - margin.bottom;
+
+    const svg = container.append('svg')
+      .attr('width', width + margin.left + margin.right)
+      .attr('height', height + margin.top + margin.bottom);
+
+    const g = svg.append('g')
+      .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const xScale = d3.scaleLinear()
+      .domain([0, d3.max(data, d => d.total) || 0])
+      .range([0, width]);
+
+    const yScale = d3.scaleBand()
+      .domain(data.map(d => d.user))
+      .range([0, height])
+      .padding(0.1);
+
+    // Add bars
+    g.selectAll('.bar')
+      .data(data)
+      .enter().append('rect')
+      .attr('class', 'bar')
+      .attr('x', 0)
+      .attr('y', d => yScale(d.user) || 0)
+      .attr('width', d => xScale(d.total))
+      .attr('height', yScale.bandwidth())
+      .attr('fill', '#3182ce')
+      .attr('opacity', 0.8);
+
+    // Add labels
+    g.selectAll('.label')
+      .data(data)
+      .enter().append('text')
+      .attr('class', 'label')
+      .attr('x', -5)
+      .attr('y', d => (yScale(d.user) || 0) + yScale.bandwidth() / 2)
+      .attr('dy', '0.35em')
+      .style('text-anchor', 'end')
+      .style('font-size', '12px')
+      .text(d => d.user);
+
+    // Add value labels
+    g.selectAll('.value')
+      .data(data)
+      .enter().append('text')
+      .attr('class', 'value')
+      .attr('x', d => xScale(d.total) + 5)
+      .attr('y', d => (yScale(d.user) || 0) + yScale.bandwidth() / 2)
+      .attr('dy', '0.35em')
+      .style('font-size', '12px')
+      .text(d => d.total);
+
+    // Add axes
+    g.append('g')
+      .attr('transform', `translate(0,${height})`)
+      .call(d3.axisBottom(xScale));
+  }, [filteredData, hideNames, community.author.id]);
+
+  // Create daily activity timeline
+  const createDailyTimeline = useCallback(() => {
+    if (!timelineChartRef.current || !filteredData.length) return;
+
+    const container = d3.select(timelineChartRef.current);
+    container.selectAll('*').remove();
+
+    // Process data by day
+    const dailyData = d3.rollup(
+      filteredData,
+      v => v.length,
+      d => d3.timeDay(d.date)
+    );
+
+    const data = Array.from(dailyData, ([date, count]) => ({ date, count }))
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+    const width = 800 - margin.left - margin.right;
+    const height = 200 - margin.top - margin.bottom;
+
+    const svg = container.append('svg')
+      .attr('width', width + margin.left + margin.right)
+      .attr('height', height + margin.top + margin.bottom);
+
+    const g = svg.append('g')
+      .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const xScale = d3.scaleTime()
+      .domain(d3.extent(data, d => d.date) as [Date, Date])
+      .range([0, width]);
+
+    const yScale = d3.scaleLinear()
+      .domain([0, d3.max(data, d => d.count) || 0])
+      .range([height, 0]);
+
+    const line = d3.line<any>()
+      .x(d => xScale(d.date))
+      .y(d => yScale(d.count))
+      .curve(d3.curveMonotoneX);
+
+    // Add line
+    g.append('path')
+      .datum(data)
+      .attr('fill', 'none')
+      .attr('stroke', '#3182ce')
+      .attr('stroke-width', 2)
+      .attr('d', line);
+
+    // Add dots
+    g.selectAll('.dot')
+      .data(data)
+      .enter().append('circle')
+      .attr('class', 'dot')
+      .attr('cx', d => xScale(d.date))
+      .attr('cy', d => yScale(d.count))
+      .attr('r', 3)
+      .attr('fill', '#3182ce');
+
+    // Add axes
+    g.append('g')
+      .attr('transform', `translate(0,${height})`)
+      .call(d3.axisBottom(xScale));
+
+    g.append('g')
+      .call(d3.axisLeft(yScale));
+  }, [filteredData]);
+
+  // Create reading pattern analysis
+  const createReadingPatterns = useCallback(() => {
+    if (!readingPatternRef.current || !filteredData.length) return;
+
+    const container = d3.select(readingPatternRef.current);
+    container.selectAll('*').remove();
+
+    const readData = filteredData.filter(d => d.type === 'read');
+    
+    // Reading by hour
+    const hourlyData = d3.rollup(
+      readData,
+      v => v.length,
+      d => d.date.getHours()
+    );
+
+    const data = Array.from(hourlyData, ([hour, count]) => ({ hour, count }))
+      .sort((a, b) => a.hour - b.hour);
+
+    const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+    const width = 600 - margin.left - margin.right;
+    const height = 200 - margin.top - margin.bottom;
+
+    const svg = container.append('svg')
+      .attr('width', width + margin.left + margin.right)
+      .attr('height', height + margin.top + margin.bottom);
+
+    const g = svg.append('g')
+      .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const xScale = d3.scaleBand()
+      .domain(data.map(d => d.hour.toString()))
+      .range([0, width])
+      .padding(0.1);
+
+    const yScale = d3.scaleLinear()
+      .domain([0, d3.max(data, d => d.count) || 0])
+      .range([height, 0]);
+
+    // Add bars
+    g.selectAll('.bar')
+      .data(data)
+      .enter().append('rect')
+      .attr('class', 'bar')
+      .attr('x', d => xScale(d.hour.toString()) || 0)
+      .attr('y', d => yScale(d.count))
+      .attr('width', xScale.bandwidth())
+      .attr('height', d => height - yScale(d.count))
+      .attr('fill', '#38a169');
+
+    // Add axes
+    g.append('g')
+      .attr('transform', `translate(0,${height})`)
+      .call(d3.axisBottom(xScale));
+
+    g.append('g')
+      .call(d3.axisLeft(yScale));
+  }, [filteredData]);
+
+  // Update activity charts when options change
+  useEffect(() => {
+    if (dataType === 'activity' && activityOptions.length > 0) {
+      setTimeout(() => {
+        if (activityOptions.includes('user-stats')) createUserActivityStats();
+        if (activityOptions.includes('timeline')) createDailyTimeline();
+        if (activityOptions.includes('reading-patterns')) createReadingPatterns();
+      }, 100);
+    }
+  }, [activityOptions, dataType, createUserActivityStats, createDailyTimeline, createReadingPatterns]);
+
   // Get dynamic legend based on data type
   const getLegendContent = () => {
     if (dataType === 'activity') {
@@ -601,10 +843,10 @@ const UnifiedDashboard: React.FC = () => {
   }
 
   return (
-    <Box bg={mainBgColor} h="100vh" overflow="hidden">
-      <Grid templateColumns="1fr 400px" h="100%">
+    <Box bg={mainBgColor} h="100vh" display="flex" flexDirection="column">
+      <Grid templateColumns="1fr 400px" flex="1" overflow="hidden">
         {/* Main Graph Area */}
-        <GridItem bg={bgColor} position="relative">
+        <GridItem bg={bgColor} position="relative" display="flex" flexDirection="column">
           {/* Graph Header */}
           <Box p={4} borderBottom="1px" borderColor={borderColor} bg={bgColor}>
             <Flex justify="space-between" align="center">
@@ -637,7 +879,7 @@ const UnifiedDashboard: React.FC = () => {
           </Box>
 
           {/* Graph Container */}
-          <Box h="calc(100vh - 80px)" position="relative">
+          <Box flex="1" position="relative" minH="400px">
             <Box ref={networkRef} w="100%" h="100%" />
             
             {/* Hover Edge Info Overlay */}
@@ -698,6 +940,33 @@ const UnifiedDashboard: React.FC = () => {
                 </RadioGroup>
               </CardBody>
             </Card>
+
+            {/* Activity Analysis Options */}
+            {dataType === 'activity' && (
+              <Card>
+                <CardHeader pb={2}>
+                  <Heading size="sm">Activity Analysis Options</Heading>
+                </CardHeader>
+                <CardBody pt={0}>
+                  <CheckboxGroup value={activityOptions} onChange={handleActivityOptionsChange}>
+                    <VStack align="start" spacing={2}>
+                      <Checkbox value="user-stats" colorScheme="blue">
+                        <Text fontSize="sm">User Activity Stats</Text>
+                      </Checkbox>
+                      <Checkbox value="records" colorScheme="green">
+                        <Text fontSize="sm">Activity Records</Text>
+                      </Checkbox>
+                      <Checkbox value="timeline" colorScheme="purple">
+                        <Text fontSize="sm">Daily Activity Timeline</Text>
+                      </Checkbox>
+                      <Checkbox value="reading-patterns" colorScheme="orange">
+                        <Text fontSize="sm">Reading Pattern Analysis</Text>
+                      </Checkbox>
+                    </VStack>
+                  </CheckboxGroup>
+                </CardBody>
+              </Card>
+            )}
 
             {/* Filters */}
             <Card>
@@ -993,6 +1262,93 @@ const UnifiedDashboard: React.FC = () => {
           </VStack>
         </GridItem>
       </Grid>
+
+      {/* Bottom Activity Analysis Section */}
+      {dataType === 'activity' && activityOptions.length > 0 && (
+        <Box
+          bg={bgColor}
+          borderTop="1px"
+          borderColor={borderColor}
+          h="300px"
+          overflowX="auto"
+          overflowY="hidden"
+        >
+          <HStack h="100%" spacing={0} align="stretch">
+            {activityOptions.includes('user-stats') && (
+              <Box minW="650px" h="100%" p={4} borderRight="1px" borderColor={borderColor}>
+                <VStack align="start" spacing={3} h="100%">
+                  <Heading size="sm" color="blue.600">User Activity Statistics</Heading>
+                  <Box ref={statsChartRef} flex="1" w="100%" />
+                </VStack>
+              </Box>
+            )}
+
+            {activityOptions.includes('records') && (
+              <Box minW="600px" h="100%" p={4} borderRight="1px" borderColor={borderColor}>
+                <VStack align="start" spacing={3} h="100%">
+                  <Heading size="sm" color="green.600">Activity Records</Heading>
+                  <Box flex="1" w="100%" overflowY="auto">
+                    <TableContainer>
+                      <Table size="sm">
+                        <Thead>
+                          <Tr>
+                            <Th>Date</Th>
+                            <Th>User</Th>
+                            <Th>Action</Th>
+                            <Th>Title</Th>
+                          </Tr>
+                        </Thead>
+                        <Tbody>
+                          {filteredData.slice(0, 10).map((record, idx) => (
+                            <Tr key={idx}>
+                              <Td fontSize="xs">{record.date.toLocaleDateString()}</Td>
+                              <Td fontSize="xs">
+                                {hideNames && record.fromId !== community.author.id ? record.fromPseudo : record.from}
+                              </Td>
+                              <Td>
+                                <Badge
+                                  size="sm"
+                                  colorScheme={
+                                    record.type === 'read' ? 'green' :
+                                    record.type === 'created' ? 'blue' : 'orange'
+                                  }
+                                >
+                                  {record.type}
+                                </Badge>
+                              </Td>
+                              <Td fontSize="xs" maxW="200px" isTruncated>
+                                {record.title}
+                              </Td>
+                            </Tr>
+                          ))}
+                        </Tbody>
+                      </Table>
+                    </TableContainer>
+                  </Box>
+                </VStack>
+              </Box>
+            )}
+
+            {activityOptions.includes('timeline') && (
+              <Box minW="850px" h="100%" p={4} borderRight="1px" borderColor={borderColor}>
+                <VStack align="start" spacing={3} h="100%">
+                  <Heading size="sm" color="purple.600">Daily Activity Timeline</Heading>
+                  <Box ref={timelineChartRef} flex="1" w="100%" />
+                </VStack>
+              </Box>
+            )}
+
+            {activityOptions.includes('reading-patterns') && (
+              <Box minW="650px" h="100%" p={4}>
+                <VStack align="start" spacing={3} h="100%">
+                  <Heading size="sm" color="orange.600">Reading Pattern Analysis</Heading>
+                  <Box ref={readingPatternRef} flex="1" w="100%" />
+                </VStack>
+              </Box>
+            )}
+          </HStack>
+        </Box>
+      )}
     </Box>
   );
 };
