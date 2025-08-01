@@ -42,18 +42,11 @@ import {
 } from '@chakra-ui/react';
 import {
   SearchIcon,
-  CalendarIcon,
   ViewIcon,
   DownloadIcon,
-  SettingsIcon,
-  InfoIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   ExternalLinkIcon,
-  TimeIcon,
-  EditIcon,
-  AddIcon,
-  StarIcon
 } from '@chakra-ui/icons';
 import { 
   FiActivity, 
@@ -66,8 +59,8 @@ import {
   FiRefreshCw
 } from 'react-icons/fi';
 import dashboardContext from '../../context/dashboard.js';
-import StatisticsTable from './StatisticsTable.tsx';
-import MainDataTable from './MainDataTable/MainDataTable';
+import StatisticsTable from './StatisticsTable';
+import MainDataTable from './MainDataTable/MainDataTable.tsx';
 import ViewsDropdown from './ViewsDropdown';
 import './ActivityDashboard.css';
 import './dc.css';
