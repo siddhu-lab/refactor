@@ -1033,8 +1033,8 @@ const UnifiedDashboard: React.FC = () => {
                   <li><span className="legend-dot built-upon"></span>Authors whose work was built upon by selected author</li>
                 </ul>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
