@@ -24,7 +24,8 @@ import {
   InputLeftElement,
   useColorModeValue,
   Link,
-  Tooltip
+  Tooltip,
+  Grid
 } from '@chakra-ui/react';
 import { SearchIcon, DownloadIcon, ExternalLinkIcon } from '@chakra-ui/icons';
 import { ActivityRecord } from '../types.ts';
