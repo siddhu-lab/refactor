@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useRef } from 'react';
+import React, { useContext, useEffect, useState, useRef, useMemo } from 'react';
 import {
   Box,
   Container,
@@ -8,38 +8,92 @@ import {
   Heading,
   Text,
   Button,
-  Select,
   Badge,
   Card,
   CardBody,
-  CardHeader,
   VStack,
   HStack,
-  Divider,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  StatArrow,
   useColorModeValue,
-  Collapse,
-  IconButton,
+  Avatar,
+  AvatarGroup,
+  Progress,
+  Divider,
+  Icon,
+  SimpleGrid,
+  useToast,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  Input,
+  InputGroup,
+  InputLeftElement,
+  Select,
+  Switch,
+  FormControl,
+  FormLabel,
   Tooltip,
-  Alert,
-  AlertIcon,
-  Spinner,
-  Center,
-  useToast
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  IconButton,
+  Wrap,
+  WrapItem,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  TableContainer,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
+  Skeleton,
+  SkeletonText
 } from '@chakra-ui/react';
-import { ChevronDownIcon, ChevronUpIcon, InfoIcon, DownloadIcon } from '@chakra-ui/icons';
-import { initializeCharts } from './chartUtils.ts';
-import StatisticsTable from './StatisticsTable.tsx';
-import MainDataTable from './MainDataTable/MainDataTable.tsx';
-import ViewsDropdown from './ViewsDropdown.tsx';
-import * as dc from 'dc';
-import SocialNetworkSection from './SocialNetworkSection/SocialNetworkSection.tsx';
+import {
+  SearchIcon,
+  CalendarIcon,
+  ViewIcon,
+  DownloadIcon,
+  SettingsIcon,
+  InfoIcon,
+  ChevronDownIcon,
+  ExternalLinkIcon,
+  TimeIcon,
+  EditIcon,
+  AddIcon,
+  StarIcon
+} from '@chakra-ui/icons';
+import { 
+  FiActivity, 
+  FiUsers, 
+  FiEye, 
+  FiEdit3, 
+  FiPlus, 
+  FiTrendingUp,
+  FiFilter,
+  FiRefreshCw
+} from 'react-icons/fi';
 import dashboardContext from '../../context/dashboard.js';
 
-// Dummy data for social interactions
+// Dummy data
 const dummySocialInteractions = [
   {
     id: '1',
-    when: Date.now() - 86400000 * 5, // 5 days ago
+    when: Date.now() - 86400000 * 5,
     type: 'read',
     from: 'John Smith',
     fromId: 'author-1',
@@ -53,7 +107,7 @@ const dummySocialInteractions = [
   },
   {
     id: '2',
-    when: Date.now() - 86400000 * 3, // 3 days ago
+    when: Date.now() - 86400000 * 3,
     type: 'created',
     from: 'Sarah Johnson',
     fromId: 'author-2',
@@ -67,7 +121,7 @@ const dummySocialInteractions = [
   },
   {
     id: '3',
-    when: Date.now() - 86400000 * 2, // 2 days ago
+    when: Date.now() - 86400000 * 2,
     type: 'modified',
     from: 'Mike Wilson',
     fromId: 'author-3',
@@ -81,7 +135,7 @@ const dummySocialInteractions = [
   },
   {
     id: '4',
-    when: Date.now() - 86400000 * 1, // 1 day ago
+    when: Date.now() - 86400000 * 1,
     type: 'read',
     from: 'Alice Brown',
     fromId: 'author-4',
@@ -95,7 +149,7 @@ const dummySocialInteractions = [
   },
   {
     id: '5',
-    when: Date.now() - 86400000 * 4, // 4 days ago
+    when: Date.now() - 86400000 * 4,
     type: 'created',
     from: 'Bob Davis',
     fromId: 'author-5',
@@ -106,200 +160,159 @@ const dummySocialInteractions = [
     view: 'Science Discussion',
     data: { body: '<p>Lab report on electromagnetic induction experiments.</p>' },
     ID: 'contrib-4'
-  },
-  {
-    id: '6',
-    when: Date.now() - 86400000 * 6, // 6 days ago
-    type: 'modified',
-    from: 'Carol White',
-    fromId: 'author-6',
-    fromPseudo: 'CarolW',
-    to: 'Carol White',
-    toPseudo: 'CarolW',
-    title: 'Literature Analysis',
-    view: 'English Class',
-    data: { body: '<p>Analysis of Shakespeare\'s Hamlet themes and characters.</p>' },
-    ID: 'contrib-5'
   }
 ];
 
-interface ActivityDashboardProps {}
+interface ActivityRecord {
+  id: string;
+  when: number;
+  date: Date;
+  type: string;
+  from: string;
+  fromId: string;
+  fromPseudo: string;
+  to: string;
+  toPseudo: string;
+  title: string;
+  view: string;
+  data: { body: string };
+  ID: string;
+}
 
-const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
+const ActivityDashboard: React.FC = () => {
   const { community, role: loggedInPersonRole, me, baseURL } = useContext(dashboardContext);
   const members = community.authors || [];
   const [hideNames, setHideNames] = useState(true);
-  const [hideManagers, setHideManagers] = useState(false);
-  const [dailyActivityVisible, setDailyActivityVisible] = useState(false);
-  const [statisticsData, setStatisticsData] = useState<any[]>([]);
-  const [labels, setLabels] = useState<{ [key: string]: string }>({});
-  const [viewsData, setViewsData] = useState<Array<{ key: string; value: number }>>([]);
-  const [selectedView, setSelectedView] = useState('');
-  const [viewDimension, setViewDimension] = useState<any>(null);
-  const [rangeFilterActive, setRangeFilterActive] = useState(false);
-  const [dateRange, setDateRange] = useState<string>('');
-  const [currentAuthor] = useState({ _id: community.author.id, role: loggedInPersonRole, name: me?.firstName+" "+me?.lastName, pseudoName: me?.pseudoName });
-  const [filteredData, setFilteredData] = useState<any[]>([]);
-  const [crossfilterInstance, setCrossfilterInstance] = useState<any>(null);
+  const [selectedRecord, setSelectedRecord] = useState<ActivityRecord | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedView, setSelectedView] = useState('all');
+  const [selectedType, setSelectedType] = useState('all');
+  const [timeRange, setTimeRange] = useState('7');
+  const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
-  const isManager = loggedInPersonRole === 'manager';
-  const chartsInitialized = useRef(false);
-
-  // Color scheme
   const bgColor = useColorModeValue('gray.50', 'gray.900');
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
+  const textColor = useColorModeValue('gray.800', 'white');
+  const mutedColor = useColorModeValue('gray.600', 'gray.400');
 
-  // Simulate data loading
-  const data = { getSocialInteractions: dummySocialInteractions };
-  const loading = false;
-  const error = null;
+  const isManager = loggedInPersonRole === 'manager';
+  const currentAuthor = { 
+    _id: community.author.id, 
+    role: loggedInPersonRole, 
+    name: me?.firstName + " " + me?.lastName, 
+    pseudoName: me?.pseudoName 
+  };
 
-  useEffect(() => {
-    if (data && data.getSocialInteractions && data.getSocialInteractions.length > 0 && !chartsInitialized.current) {
-      chartsInitialized.current = true;
-      
-      let parsed = data.getSocialInteractions.map((d) => {
-        const dCopy = { ...d }; 
-        const date = new Date(parseInt(dCopy.when));
-        dCopy.date = date;
-        dCopy.year = new Date(date.getFullYear(), 0, 1);
-        dCopy.month = new Date(date.getFullYear(), date.getMonth(), 1);
-        dCopy.day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-        dCopy.week = new Date(date.getFullYear(), date.getMonth(), date.getDate() - date.getDay());
-        dCopy.value = 1;
-        dCopy.read = 0;
-        dCopy.modify = 0;
-        dCopy.buildson = 0;
-        dCopy[dCopy.type] = 1;
-        return dCopy;
-      });
+  // Process data
+  const processedData = useMemo(() => {
+    return dummySocialInteractions.map((d) => ({
+      ...d,
+      date: new Date(parseInt(d.when.toString()))
+    }));
+  }, []);
 
-      setTimeout(() => {
-        const { statsData, labelsData, viewsGroupData, viewDim, ndx} = initializeCharts(parsed, hideNames, currentAuthor);
-        setStatisticsData(statsData);
-        setLabels(labelsData);
-        setViewDimension(viewDim);
-        setViewsData(viewsGroupData || []);
+  // Filter data
+  const filteredData = useMemo(() => {
+    let filtered = processedData;
 
-        setCrossfilterInstance(ndx);
-        const updateFilteredData = () => {
-          if (ndx) {
-            const allFiltered = ndx.allFiltered();
-            setFilteredData(allFiltered);
-            
-            const authorDimension = ndx.dimension((d: any) => {
-              return hideNames && d.fromId !== currentAuthor?._id ? d.fromPseudo : d.from;
-            });
-            
-            const groupedDimension = authorDimension.group().reduce(
-              (p: any, v: any) => {
-                p[v.type] += 1;
-                p.total += 1;
-                return p;
-              },
-              (p: any, v: any) => {
-                p[v.type] -= 1;
-                p.total -= 1;
-                return p;
-              },
-              () => ({ read: 0, modified: 0, created: 0, total: 0 })
-            );
-            
-            const newStatsData = groupedDimension.all().filter((d: any) => d.value.total > 0);
-            setStatisticsData(newStatsData);
-          }
-        };
-
-        const lineChart = dc.chartRegistry.list().find(chart => chart.anchor() === '#line-chart');
-        const rangeChart = dc.chartRegistry.list().find(chart => chart.anchor() === '#range-chart');
-        const typeChart = dc.chartRegistry.list().find(chart => chart.anchor() === '#type-chart');
-        const authorChart = dc.chartRegistry.list().find(chart => chart.anchor() === '#author-chart');
-        
-        if (lineChart && rangeChart) {
-          const updateRangeDisplay = () => {
-            const hasLineFilter = lineChart.hasFilter();
-            const hasRangeFilter = rangeChart.hasFilter();
-            const hasFilter = hasLineFilter || hasRangeFilter;
-            
-            setRangeFilterActive(hasFilter);
-            
-            if (hasFilter) {
-              let filter = null;
-              if (hasLineFilter) {
-                filter = lineChart.filter();
-              } else if (hasRangeFilter) {
-                filter = rangeChart.filter();
-              }
-              
-              if (filter && Array.isArray(filter) && filter.length === 2) {
-                const startDate = new Date(filter[0]);
-                const endDate = new Date(filter[1]);
-                const formatDate = (date: Date) => {
-                  return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}/${date.getFullYear()}`;
-                };
-                setDateRange(`${formatDate(startDate)} → ${formatDate(endDate)}`);
-              }
-            } else {
-              setDateRange('');
-            }
-            updateFilteredData();
-          };
-
-          lineChart.on('filtered', null);
-          rangeChart.on('filtered', null);
-
-          lineChart.on('filtered', updateRangeDisplay);
-          rangeChart.on('filtered', updateRangeDisplay);
-        }
-
-        if (typeChart) {
-          typeChart.on('filtered', () => {
-            updateFilteredData();
-          });
-        }
-        if (authorChart) {
-          authorChart.on('filtered', () => {
-            updateFilteredData();
-          });
-        }
-        updateFilteredData();
-
-      }, 100);
+    // Time range filter
+    if (timeRange !== 'all') {
+      const days = parseInt(timeRange);
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      filtered = filtered.filter(item => item.date >= cutoff);
     }
-  }, [data, hideNames, currentAuthor]);
 
-  useEffect(() => {
-    if (chartsInitialized.current && crossfilterInstance) {
-      const parsed = data.getSocialInteractions.map((d) => {
-        const dCopy = { ...d }; 
-        const date = new Date(parseInt(dCopy.when));
-        dCopy.date = date;
-        dCopy.year = new Date(date.getFullYear(), 0, 1);
-        dCopy.month = new Date(date.getFullYear(), date.getMonth(), 1);
-        dCopy.day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-        dCopy.week = new Date(date.getFullYear(), date.getMonth(), date.getDate() - date.getDay());
-        dCopy.value = 1;
-        dCopy.read = 0;
-        dCopy.modify = 0;
-        dCopy.buildson = 0;
-        dCopy[dCopy.type] = 1;
-        return dCopy;
-      });
-
-      setTimeout(() => {
-        const { statsData, labelsData } = initializeCharts(parsed, hideNames, currentAuthor);
-        setStatisticsData(statsData);
-        setLabels(labelsData);
-      }, 100);
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(item =>
+        item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.from.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.view.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
-  }, [hideNames, crossfilterInstance, currentAuthor, data.getSocialInteractions]);
+
+    // View filter
+    if (selectedView !== 'all') {
+      filtered = filtered.filter(item => item.view === selectedView);
+    }
+
+    // Type filter
+    if (selectedType !== 'all') {
+      filtered = filtered.filter(item => item.type === selectedType);
+    }
+
+    return filtered.sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [processedData, timeRange, searchTerm, selectedView, selectedType]);
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const total = filteredData.length;
+    const reads = filteredData.filter(d => d.type === 'read').length;
+    const created = filteredData.filter(d => d.type === 'created').length;
+    const modified = filteredData.filter(d => d.type === 'modified').length;
+    
+    const uniqueUsers = new Set(filteredData.map(d => 
+      hideNames && d.fromId !== currentAuthor._id ? d.fromPseudo : d.from
+    )).size;
+
+    const views = new Set(filteredData.map(d => d.view)).size;
+
+    return { total, reads, created, modified, uniqueUsers, views };
+  }, [filteredData, hideNames, currentAuthor._id]);
+
+  // Get unique views for filter
+  const uniqueViews = useMemo(() => {
+    return Array.from(new Set(processedData.map(d => d.view)));
+  }, [processedData]);
+
+  // Get activity by user
+  const userActivity = useMemo(() => {
+    const activity: { [key: string]: { reads: number; created: number; modified: number; total: number } } = {};
+    
+    filteredData.forEach(item => {
+      const userName = hideNames && item.fromId !== currentAuthor._id ? item.fromPseudo : item.from;
+      if (!activity[userName]) {
+        activity[userName] = { reads: 0, created: 0, modified: 0, total: 0 };
+      }
+      activity[userName][item.type as keyof typeof activity[userName]]++;
+      activity[userName].total++;
+    });
+
+    return Object.entries(activity)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10);
+  }, [filteredData, hideNames, currentAuthor._id]);
+
+  const getActionColor = (type: string) => {
+    switch (type) {
+      case 'read': return 'blue';
+      case 'created': return 'green';
+      case 'modified': return 'orange';
+      default: return 'gray';
+    }
+  };
+
+  const getActionIcon = (type: string) => {
+    switch (type) {
+      case 'read': return FiEye;
+      case 'created': return FiPlus;
+      case 'modified': return FiEdit3;
+      default: return FiActivity;
+    }
+  };
+
+  const handleRecordClick = (record: ActivityRecord) => {
+    setSelectedRecord(record);
+    onOpen();
+  };
 
   const toggleNames = () => {
     if (isManager) {
       setHideNames(!hideNames);
-      setSelectedView('');
       toast({
         title: hideNames ? "Names revealed" : "Names hidden",
         description: hideNames ? "Real names are now visible" : "Pseudonyms are now shown",
@@ -318,300 +331,502 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
     }
   };
 
-  const toggleManagers = () => {
-    if (isManager) {
-      setHideManagers(!hideManagers);
-    } 
-  };
-
-  const toggleDailyActivity = () => {
-    setDailyActivityVisible(!dailyActivityVisible);
-  };
-
-  const resetFilters = () => {
-    setFilteredData(data.getSocialInteractions);
-    dc.filterAll();
-    dc.renderAll();
-    if (viewDimension) {
-      viewDimension.filterAll();
-      dc.redrawAll();
-    }
-    setSelectedView('');
-    setRangeFilterActive(false);
-    setDateRange('');
-    toast({
-      title: "Filters Reset",
-      description: "All filters have been cleared",
-      status: "success",
-      duration: 2000,
-      isClosable: true,
-    });
-  };
-
-  const resetRangeFilter = () => {
-    const lineChart = dc.chartRegistry.list().find(chart => chart.anchor() === '#line-chart');
-    const rangeChart = dc.chartRegistry.list().find(chart => chart.anchor() === '#range-chart');
-    if (lineChart) {
-      lineChart.filterAll();
-    }
-    if (rangeChart) {
-      rangeChart.filterAll();
-    }
-    dc.redrawAll();
-    setRangeFilterActive(false);
-    setDateRange('');
-  };
-
-  const handleViewSelect = (viewKey: string) => {
-    setSelectedView(viewKey);
-    if (viewDimension) {
-      if (viewKey === '') {
-        viewDimension.filterAll();
-      } else {
-        viewDimension.filter(viewKey);
-      }
-      dc.redrawAll();
-      if (crossfilterInstance) {
-        const allFiltered = crossfilterInstance.allFiltered();
-        setFilteredData(allFiltered);
-        
-        const authorDimension = crossfilterInstance.dimension((d: any) => {
-          return hideNames && d.fromId !== currentAuthor._id ? d.fromPseudo : d.from;
-        });
-        
-        const groupedDimension = authorDimension.group().reduce(
-          (p: any, v: any) => {
-            p[v.type] += 1;
-            p.total += 1;
-            return p;
-          },
-          (p: any, v: any) => {
-            p[v.type] -= 1;
-            p.total -= 1;
-            return p;
-          },
-          () => ({ read: 0, modified: 0, created: 0, total: 0 })
-        );
-        
-        const newStatsData = groupedDimension.all().filter((d: any) => d.value.total > 0);
-        setStatisticsData(newStatsData);
-      }
-    }
-  };
-
-  if (loading) {
-    return (
-      <Center h="100vh">
-        <VStack spacing={4}>
-          <Spinner size="xl" color="blue.500" thickness="4px" />
-          <Text fontSize="lg" color="gray.600">Loading activity data...</Text>
-        </VStack>
-      </Center>
-    );
-  }
-
-  if (error) {
-    return (
-      <Container maxW="container.lg" py={8}>
-        <Alert status="error" borderRadius="md">
-          <AlertIcon />
-          Error loading activity data. Please try again later.
-        </Alert>
-      </Container>
-    );
-  }
-
   return (
-    <Box bg={bgColor} h="100%" overflow="auto">
-      <Container maxW="container.xl" py={6} h="100%">
-        <VStack spacing={6} align="stretch">
+    <Box bg={bgColor} minH="100vh" p={6}>
+      <Container maxW="container.xl">
+        <VStack spacing={8} align="stretch">
           {/* Header */}
-          <Card bg={cardBg} shadow="sm" borderColor={borderColor}>
-            <CardHeader>
-              <Flex justify="space-between" align="center" wrap="wrap" gap={4}>
-                <VStack align="start" spacing={1}>
-                  <Heading size="lg" color="gray.700">
-                    Knowledge Forum Activity Dashboard
-                  </Heading>
-                  <Text color="gray.500" fontSize="sm">
-                    Real-time insights into community engagement and collaboration
-                  </Text>
-                </VStack>
+          <Box>
+            <Flex justify="space-between" align="center" mb={6}>
+              <VStack align="start" spacing={2}>
+                <Heading size="xl" color={textColor} fontWeight="bold">
+                  Activity Dashboard
+                </Heading>
+                <Text color={mutedColor} fontSize="lg">
+                  Real-time insights into community engagement
+                </Text>
+              </VStack>
+              
+              <HStack spacing={4}>
+                <Badge colorScheme="blue" px={4} py={2} borderRadius="full" fontSize="sm">
+                  <HStack spacing={2}>
+                    <Avatar size="xs" name={currentAuthor.name} />
+                    <Text fontWeight="medium">{currentAuthor.name}</Text>
+                  </HStack>
+                </Badge>
                 
-                <HStack spacing={3} wrap="wrap">
-                  <Badge colorScheme="blue" px={3} py={1} borderRadius="full">
-                    <HStack spacing={2}>
-                      <Text fontSize="xs" fontWeight="medium">Current User:</Text>
-                      <Text fontSize="xs" fontWeight="bold">{currentAuthor.name}</Text>
-                    </HStack>
-                  </Badge>
-                  
-                  <Tooltip 
-                    label={isManager ? `${hideNames ? 'Show' : 'Hide'} real names` : "Only managers can view other users' names"}
-                    hasArrow
+                <Tooltip label={isManager ? `${hideNames ? 'Show' : 'Hide'} real names` : "Only managers can view names"}>
+                  <Button
+                    leftIcon={<ViewIcon />}
+                    colorScheme={isManager ? "purple" : "gray"}
+                    variant={isManager ? "solid" : "outline"}
+                    onClick={toggleNames}
+                    isDisabled={!isManager}
+                    size="md"
                   >
-                    <Button
-                      size="sm"
-                      colorScheme={isManager ? "blue" : "gray"}
-                      variant={isManager ? "solid" : "outline"}
-                      onClick={toggleNames}
-                      isDisabled={!isManager}
-                      leftIcon={<InfoIcon />}
-                    >
-                      {hideNames ? 'Show' : 'Hide'} Names
-                    </Button>
-                  </Tooltip>
-                </HStack>
-              </Flex>
-            </CardHeader>
-          </Card>
+                    {hideNames ? 'Show' : 'Hide'} Names
+                  </Button>
+                </Tooltip>
+              </HStack>
+            </Flex>
 
-          {/* Main Dashboard */}
-          <Card bg={cardBg} shadow="sm" borderColor={borderColor}>
-            <CardBody>
-              <Grid templateColumns={{ base: "1fr", lg: "200px 200px 1fr" }} gap={6} alignItems="start">
-                <GridItem>
-                  <VStack align="stretch" spacing={4}>
-                    <Box>
-                      <Text fontSize="sm" fontWeight="semibold" color="gray.600" mb={3}>
-                        Activity Types
-                      </Text>
-                      <Box id="type-chart" minH="200px" />
-                    </Box>
-                  </VStack>
-                </GridItem>
-                
-                <GridItem>
-                  <VStack align="stretch" spacing={4}>
-                    <Box>
-                      <Text fontSize="sm" fontWeight="semibold" color="gray.600" mb={3}>
-                        Views Filter
-                      </Text>
-                      <ViewsDropdown 
-                        views={viewsData}
-                        onViewSelect={handleViewSelect}
-                        selectedView={selectedView}
-                      />
-                    </Box>
-                  </VStack>
-                </GridItem>
-                
-                <GridItem>
-                  <VStack align="stretch" spacing={4}>
-                    <Box>
-                      <Text fontSize="sm" fontWeight="semibold" color="gray.600" mb={3}>
-                        Authors Activity
-                      </Text>
-                      <Box id="author-chart" minH="250px" />
-                    </Box>
-                  </VStack>
-                </GridItem>
-              </Grid>
-            </CardBody>
-          </Card>
+            {/* Stats Overview */}
+            <SimpleGrid columns={{ base: 2, md: 6 }} spacing={6} mb={8}>
+              <Card bg={cardBg} shadow="lg" borderRadius="xl" overflow="hidden">
+                <CardBody>
+                  <Stat>
+                    <StatLabel color={mutedColor} fontSize="sm" fontWeight="medium">Total Activities</StatLabel>
+                    <StatNumber color="blue.500" fontSize="2xl" fontWeight="bold">{stats.total}</StatNumber>
+                    <StatHelpText color={mutedColor}>
+                      <StatArrow type="increase" />
+                      Last {timeRange} days
+                    </StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
 
-          {/* Timeline Section */}
-          <Card bg={cardBg} shadow="sm" borderColor={borderColor}>
-            <CardHeader>
-              <Flex justify="space-between" align="center">
-                <HStack spacing={3}>
-                  <Heading size="md" color="gray.700">Daily Activity Timeline</Heading>
-                  {rangeFilterActive && (
-                    <Badge colorScheme="orange" variant="subtle">
-                      <HStack spacing={2}>
-                        <Text fontSize="xs">Range: {dateRange}</Text>
-                        <Button size="xs" variant="ghost" onClick={resetRangeFilter}>
-                          ×
+              <Card bg={cardBg} shadow="lg" borderRadius="xl" overflow="hidden">
+                <CardBody>
+                  <Stat>
+                    <StatLabel color={mutedColor} fontSize="sm" fontWeight="medium">Reads</StatLabel>
+                    <StatNumber color="blue.500" fontSize="2xl" fontWeight="bold">{stats.reads}</StatNumber>
+                    <StatHelpText color={mutedColor}>
+                      {((stats.reads / stats.total) * 100).toFixed(1)}% of total
+                    </StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+
+              <Card bg={cardBg} shadow="lg" borderRadius="xl" overflow="hidden">
+                <CardBody>
+                  <Stat>
+                    <StatLabel color={mutedColor} fontSize="sm" fontWeight="medium">Created</StatLabel>
+                    <StatNumber color="green.500" fontSize="2xl" fontWeight="bold">{stats.created}</StatNumber>
+                    <StatHelpText color={mutedColor}>
+                      {((stats.created / stats.total) * 100).toFixed(1)}% of total
+                    </StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+
+              <Card bg={cardBg} shadow="lg" borderRadius="xl" overflow="hidden">
+                <CardBody>
+                  <Stat>
+                    <StatLabel color={mutedColor} fontSize="sm" fontWeight="medium">Modified</StatLabel>
+                    <StatNumber color="orange.500" fontSize="2xl" fontWeight="bold">{stats.modified}</StatNumber>
+                    <StatHelpText color={mutedColor}>
+                      {((stats.modified / stats.total) * 100).toFixed(1)}% of total
+                    </StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+
+              <Card bg={cardBg} shadow="lg" borderRadius="xl" overflow="hidden">
+                <CardBody>
+                  <Stat>
+                    <StatLabel color={mutedColor} fontSize="sm" fontWeight="medium">Active Users</StatLabel>
+                    <StatNumber color="purple.500" fontSize="2xl" fontWeight="bold">{stats.uniqueUsers}</StatNumber>
+                    <StatHelpText color={mutedColor}>
+                      Participating
+                    </StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+
+              <Card bg={cardBg} shadow="lg" borderRadius="xl" overflow="hidden">
+                <CardBody>
+                  <Stat>
+                    <StatLabel color={mutedColor} fontSize="sm" fontWeight="medium">Views</StatLabel>
+                    <StatNumber color="teal.500" fontSize="2xl" fontWeight="bold">{stats.views}</StatNumber>
+                    <StatHelpText color={mutedColor}>
+                      Different contexts
+                    </StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+            </SimpleGrid>
+          </Box>
+
+          {/* Main Content */}
+          <Grid templateColumns={{ base: "1fr", lg: "1fr 350px" }} gap={8}>
+            <GridItem>
+              <VStack spacing={6} align="stretch">
+                {/* Filters */}
+                <Card bg={cardBg} shadow="lg" borderRadius="xl">
+                  <CardBody>
+                    <VStack spacing={4} align="stretch">
+                      <Flex justify="space-between" align="center">
+                        <Heading size="md" color={textColor}>Filters & Search</Heading>
+                        <Button
+                          leftIcon={<Icon as={FiRefreshCw} />}
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setSearchTerm('');
+                            setSelectedView('all');
+                            setSelectedType('all');
+                            setTimeRange('7');
+                          }}
+                        >
+                          Reset
                         </Button>
-                      </HStack>
-                    </Badge>
-                  )}
-                </HStack>
-                
-                <IconButton
-                  aria-label={dailyActivityVisible ? 'Hide timeline' : 'Show timeline'}
-                  icon={dailyActivityVisible ? <ChevronUpIcon /> : <ChevronDownIcon />}
-                  size="sm"
-                  variant="ghost"
-                  onClick={toggleDailyActivity}
-                />
-              </Flex>
-            </CardHeader>
-            
-            <Collapse in={dailyActivityVisible}>
-              <CardBody pt={0}>
-                <VStack spacing={4} align="stretch">
-                  <Box bg="gray.50" p={4} borderRadius="md">
-                    <Box id="line-chart" minH="180px" />
-                  </Box>
-                  
-                  <Box bg="gray.50" p={2} borderRadius="md">
-                    <Box id="range-chart" minH="40px" />
-                  </Box>
-                  
-                  <Text fontSize="xs" color="gray.500" textAlign="center" fontStyle="italic">
-                    💡 Drag on the timeline to select a time range for detailed analysis
-                  </Text>
-                </VStack>
-              </CardBody>
-            </Collapse>
-          </Card>
+                      </Flex>
+                      
+                      <SimpleGrid columns={{ base: 1, md: 4 }} spacing={4}>
+                        <InputGroup>
+                          <InputLeftElement>
+                            <SearchIcon color={mutedColor} />
+                          </InputLeftElement>
+                          <Input
+                            placeholder="Search activities..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            bg="white"
+                            borderColor={borderColor}
+                          />
+                        </InputGroup>
 
-          {/* Data Count and Reset */}
-          <Card bg="blue.50" borderColor="blue.200" shadow="sm">
-            <CardBody>
-              <Flex justify="space-between" align="center" wrap="wrap" gap={4}>
-                <HStack spacing={4}>
-                  <Text fontSize="sm" color="blue.700">
-                    <Text as="span" fontWeight="bold" className="filter-count"></Text> selected out of{' '}
-                    <Text as="span" fontWeight="bold" className="total-count"></Text> records
-                  </Text>
-                </HStack>
-                
+                        <Select
+                          value={selectedView}
+                          onChange={(e) => setSelectedView(e.target.value)}
+                          bg="white"
+                          borderColor={borderColor}
+                        >
+                          <option value="all">All Views</option>
+                          {uniqueViews.map(view => (
+                            <option key={view} value={view}>{view}</option>
+                          ))}
+                        </Select>
+
+                        <Select
+                          value={selectedType}
+                          onChange={(e) => setSelectedType(e.target.value)}
+                          bg="white"
+                          borderColor={borderColor}
+                        >
+                          <option value="all">All Types</option>
+                          <option value="read">Read</option>
+                          <option value="created">Created</option>
+                          <option value="modified">Modified</option>
+                        </Select>
+
+                        <Select
+                          value={timeRange}
+                          onChange={(e) => setTimeRange(e.target.value)}
+                          bg="white"
+                          borderColor={borderColor}
+                        >
+                          <option value="1">Last 24 hours</option>
+                          <option value="7">Last 7 days</option>
+                          <option value="30">Last 30 days</option>
+                          <option value="90">Last 90 days</option>
+                          <option value="all">All time</option>
+                        </Select>
+                      </SimpleGrid>
+                    </VStack>
+                  </CardBody>
+                </Card>
+
+                {/* Activity Feed */}
+                <Card bg={cardBg} shadow="lg" borderRadius="xl">
+                  <CardBody>
+                    <Flex justify="space-between" align="center" mb={6}>
+                      <Heading size="md" color={textColor}>Recent Activity</Heading>
+                      <Text color={mutedColor} fontSize="sm">
+                        {filteredData.length} activities found
+                      </Text>
+                    </Flex>
+
+                    <VStack spacing={4} align="stretch" maxH="600px" overflowY="auto">
+                      {filteredData.length === 0 ? (
+                        <Box textAlign="center" py={12}>
+                          <Icon as={FiActivity} boxSize={12} color={mutedColor} mb={4} />
+                          <Text color={mutedColor} fontSize="lg">No activities found</Text>
+                          <Text color={mutedColor} fontSize="sm">Try adjusting your filters</Text>
+                        </Box>
+                      ) : (
+                        filteredData.map((record) => {
+                          const displayName = hideNames && record.fromId !== currentAuthor._id 
+                            ? record.fromPseudo 
+                            : record.from;
+                          
+                          return (
+                            <Card
+                              key={record.id}
+                              variant="outline"
+                              cursor="pointer"
+                              onClick={() => handleRecordClick(record)}
+                              _hover={{ shadow: "md", transform: "translateY(-2px)" }}
+                              transition="all 0.2s"
+                              borderRadius="lg"
+                            >
+                              <CardBody>
+                                <Flex align="center" justify="space-between">
+                                  <HStack spacing={4} flex={1}>
+                                    <Icon
+                                      as={getActionIcon(record.type)}
+                                      boxSize={5}
+                                      color={`${getActionColor(record.type)}.500`}
+                                    />
+                                    
+                                    <VStack align="start" spacing={1} flex={1}>
+                                      <Text fontWeight="semibold" color={textColor} noOfLines={1}>
+                                        {record.title}
+                                      </Text>
+                                      <HStack spacing={2}>
+                                        <Avatar size="xs" name={displayName} />
+                                        <Text fontSize="sm" color={mutedColor}>
+                                          {displayName}
+                                        </Text>
+                                        <Badge colorScheme={getActionColor(record.type)} size="sm">
+                                          {record.type}
+                                        </Badge>
+                                        <Badge variant="outline" size="sm">
+                                          {record.view}
+                                        </Badge>
+                                      </HStack>
+                                    </VStack>
+                                  </HStack>
+                                  
+                                  <VStack align="end" spacing={1}>
+                                    <Text fontSize="xs" color={mutedColor}>
+                                      {record.date.toLocaleDateString()}
+                                    </Text>
+                                    <Text fontSize="xs" color={mutedColor}>
+                                      {record.date.toLocaleTimeString()}
+                                    </Text>
+                                  </VStack>
+                                </Flex>
+                              </CardBody>
+                            </Card>
+                          );
+                        })
+                      )}
+                    </VStack>
+                  </CardBody>
+                </Card>
+              </VStack>
+            </GridItem>
+
+            {/* Sidebar */}
+            <GridItem>
+              <VStack spacing={6} align="stretch">
+                {/* Top Users */}
+                <Card bg={cardBg} shadow="lg" borderRadius="xl">
+                  <CardBody>
+                    <Heading size="md" color={textColor} mb={4}>Most Active Users</Heading>
+                    <VStack spacing={3} align="stretch">
+                      {userActivity.slice(0, 5).map((user, index) => (
+                        <Flex key={user.name} align="center" justify="space-between">
+                          <HStack spacing={3}>
+                            <Badge
+                              colorScheme={index === 0 ? "gold" : index === 1 ? "gray" : "orange"}
+                              variant="solid"
+                              borderRadius="full"
+                              px={2}
+                            >
+                              {index + 1}
+                            </Badge>
+                            <Avatar size="sm" name={user.name} />
+                            <VStack align="start" spacing={0}>
+                              <Text fontWeight="medium" fontSize="sm" color={textColor}>
+                                {user.name}
+                              </Text>
+                              <Text fontSize="xs" color={mutedColor}>
+                                {user.total} activities
+                              </Text>
+                            </VStack>
+                          </HStack>
+                          <HStack spacing={1}>
+                            <Badge colorScheme="blue" size="sm">{user.reads}</Badge>
+                            <Badge colorScheme="green" size="sm">{user.created}</Badge>
+                            <Badge colorScheme="orange" size="sm">{user.modified}</Badge>
+                          </HStack>
+                        </Flex>
+                      ))}
+                    </VStack>
+                  </CardBody>
+                </Card>
+
+                {/* Activity Distribution */}
+                <Card bg={cardBg} shadow="lg" borderRadius="xl">
+                  <CardBody>
+                    <Heading size="md" color={textColor} mb={4}>Activity Distribution</Heading>
+                    <VStack spacing={4} align="stretch">
+                      <Box>
+                        <Flex justify="space-between" mb={2}>
+                          <Text fontSize="sm" color={mutedColor}>Reads</Text>
+                          <Text fontSize="sm" fontWeight="medium" color="blue.500">
+                            {stats.reads} ({((stats.reads / stats.total) * 100).toFixed(1)}%)
+                          </Text>
+                        </Flex>
+                        <Progress
+                          value={(stats.reads / stats.total) * 100}
+                          colorScheme="blue"
+                          borderRadius="full"
+                          size="sm"
+                        />
+                      </Box>
+
+                      <Box>
+                        <Flex justify="space-between" mb={2}>
+                          <Text fontSize="sm" color={mutedColor}>Created</Text>
+                          <Text fontSize="sm" fontWeight="medium" color="green.500">
+                            {stats.created} ({((stats.created / stats.total) * 100).toFixed(1)}%)
+                          </Text>
+                        </Flex>
+                        <Progress
+                          value={(stats.created / stats.total) * 100}
+                          colorScheme="green"
+                          borderRadius="full"
+                          size="sm"
+                        />
+                      </Box>
+
+                      <Box>
+                        <Flex justify="space-between" mb={2}>
+                          <Text fontSize="sm" color={mutedColor}>Modified</Text>
+                          <Text fontSize="sm" fontWeight="medium" color="orange.500">
+                            {stats.modified} ({((stats.modified / stats.total) * 100).toFixed(1)}%)
+                          </Text>
+                        </Flex>
+                        <Progress
+                          value={(stats.modified / stats.total) * 100}
+                          colorScheme="orange"
+                          borderRadius="full"
+                          size="sm"
+                        />
+                      </Box>
+                    </VStack>
+                  </CardBody>
+                </Card>
+
+                {/* Quick Actions */}
+                <Card bg={cardBg} shadow="lg" borderRadius="xl">
+                  <CardBody>
+                    <Heading size="md" color={textColor} mb={4}>Quick Actions</Heading>
+                    <VStack spacing={3} align="stretch">
+                      <Button
+                        leftIcon={<DownloadIcon />}
+                        colorScheme="blue"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          toast({
+                            title: "Export Started",
+                            description: "Your data is being prepared for download",
+                            status: "info",
+                            duration: 3000,
+                            isClosable: true,
+                          });
+                        }}
+                      >
+                        Export Data
+                      </Button>
+                      
+                      <Button
+                        leftIcon={<Icon as={FiFilter} />}
+                        colorScheme="purple"
+                        variant="outline"
+                        size="sm"
+                      >
+                        Advanced Filters
+                      </Button>
+                      
+                      <Button
+                        leftIcon={<Icon as={FiTrendingUp} />}
+                        colorScheme="teal"
+                        variant="outline"
+                        size="sm"
+                      >
+                        View Analytics
+                      </Button>
+                    </VStack>
+                  </CardBody>
+                </Card>
+              </VStack>
+            </GridItem>
+          </Grid>
+        </VStack>
+      </Container>
+
+      {/* Activity Detail Modal */}
+      <Modal isOpen={isOpen} onClose={onClose} size="xl">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>
+            <VStack align="start" spacing={2}>
+              <Text>{selectedRecord?.title}</Text>
+              <HStack spacing={2}>
+                <Badge colorScheme={getActionColor(selectedRecord?.type || '')}>
+                  {selectedRecord?.type}
+                </Badge>
+                <Badge variant="outline">{selectedRecord?.view}</Badge>
+              </HStack>
+            </VStack>
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            {selectedRecord && (
+              <VStack spacing={4} align="stretch">
+                <SimpleGrid columns={2} spacing={4}>
+                  <Box>
+                    <Text fontSize="sm" color={mutedColor} mb={1}>Author</Text>
+                    <HStack>
+                      <Avatar 
+                        size="sm" 
+                        name={hideNames && selectedRecord.fromId !== currentAuthor._id 
+                          ? selectedRecord.fromPseudo 
+                          : selectedRecord.from
+                        } 
+                      />
+                      <Text fontWeight="medium">
+                        {hideNames && selectedRecord.fromId !== currentAuthor._id 
+                          ? selectedRecord.fromPseudo 
+                          : selectedRecord.from
+                        }
+                      </Text>
+                    </HStack>
+                  </Box>
+                  
+                  <Box>
+                    <Text fontSize="sm" color={mutedColor} mb={1}>Date & Time</Text>
+                    <Text fontWeight="medium">
+                      {selectedRecord.date.toLocaleDateString()} at {selectedRecord.date.toLocaleTimeString()}
+                    </Text>
+                  </Box>
+                </SimpleGrid>
+
+                <Divider />
+
+                <Box>
+                  <Text fontSize="sm" color={mutedColor} mb={2}>Content</Text>
+                  <Box
+                    p={4}
+                    bg="gray.50"
+                    borderRadius="md"
+                    border="1px solid"
+                    borderColor={borderColor}
+                    dangerouslySetInnerHTML={{ __html: selectedRecord.data.body }}
+                  />
+                </Box>
+
                 <Button
-                  size="sm"
+                  as="a"
+                  href={`${baseURL}/contribution/${selectedRecord.ID}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  leftIcon={<ExternalLinkIcon />}
                   colorScheme="blue"
                   variant="outline"
-                  onClick={resetFilters}
-                  leftIcon={<DownloadIcon />}
                 >
-                  Reset All Filters
+                  View Original
                 </Button>
-              </Flex>
-            </CardBody>
-          </Card>
-
-          {/* Social Network Analysis */}
-          <SocialNetworkSection 
-            data={filteredData} 
-            hideNames={hideNames} 
-            currentAuthor={currentAuthor} 
-          />
-
-          {/* Statistics Table */}
-          <StatisticsTable
-            data={statisticsData}
-            originalData={data?.getSocialInteractions || []}
-            members={members}
-            labels={labels}
-            hideManagers={hideManagers}
-            hideNames={hideNames}
-            selectedView={selectedView}
-            currentAuthor={currentAuthor}
-            isManager={isManager}
-            toggleManagers={toggleManagers}
-          />
-
-          {/* Main Data Table */}
-          <MainDataTable 
-            data={filteredData} 
-            labels={labels} 
-            hideNames={hideNames} 
-            currentAuthor={currentAuthor} 
-            baseURL={baseURL}
-          />
-        </VStack>
-      </Container>
+              </VStack>
+            )}
+          </ModalBody>
+        </ModalContent>
+      </Modal>
     </Box>
   );
 };
