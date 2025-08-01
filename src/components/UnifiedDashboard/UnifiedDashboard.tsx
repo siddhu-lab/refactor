@@ -34,7 +34,8 @@ import {
   AlertDescription,
   RadioGroup,
   Radio,
-  Stack
+  Stack,
+  Flex
 } from '@chakra-ui/react';
 import { InfoIcon, SettingsIcon } from '@chakra-ui/icons';
 import { Network } from 'vis-network';
