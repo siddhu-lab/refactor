@@ -267,21 +267,15 @@ const UnifiedDashboard: React.FC = () => {
   useEffect(() => {
     if (!networkRef.current || !processedData) return;
 
-    // Build edges configuration conditionally
-    const edgesConfig: any = {
-      smooth: { type: 'continuous' }
-    };
-    
-    if (networkSettings.showDirections) {
-      edgesConfig.arrows = { to: true };
-    }
-
     const options = {
       nodes: {
         shape: 'dot',
         scaling: { min: 10, max: 50 }
       },
-      edges: edgesConfig,
+      edges: {
+        smooth: { type: 'continuous' },
+        arrows: networkSettings.showDirections ? { to: true } : undefined
+      },
       physics: {
         stabilization: { iterations: 200 },
         barnesHut: {
