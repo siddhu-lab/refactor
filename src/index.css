@@ -86,9 +86,8 @@ code {
 
 .content {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   background: white;
-  height: 100%;
 }
 
 .content-placeholder {
