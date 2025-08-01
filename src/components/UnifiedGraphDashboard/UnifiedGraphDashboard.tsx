@@ -40,7 +40,16 @@ import {
 } from '@chakra-ui/react';
 import { InfoIcon, SettingsIcon } from '@chakra-ui/icons';
 import { Network } from 'vis-network';
-import * as d3 from 'd3';
+  Collapse,
+  CheckboxGroup,
+  Checkbox,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  TableContainer
 import dashboardContext from '../../context/dashboard.js';
 
 const UnifiedDashboard: React.FC = () => {
