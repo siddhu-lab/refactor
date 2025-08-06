@@ -1,33 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import {
-  Box,
-  Card,
-  CardBody,
-  CardHeader,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Heading,
-  Text,
-  Button,
-  Select,
-  Input,
-  HStack,
-  VStack,
-  Flex,
-  Badge,
-  ButtonGroup,
-  InputGroup,
-  InputLeftElement,
-  useColorModeValue,
-  Link,
-  Tooltip,
-  Grid
-} from '@chakra-ui/react';
-import { SearchIcon, DownloadIcon, ExternalLinkIcon } from '@chakra-ui/icons';
 import { ActivityRecord } from '../types.ts';
 import Modal from './Modal.tsx';
 
@@ -46,9 +17,7 @@ const MainDataTable: React.FC<MainDataTableProps> = ({ data, labels, hideNames, 
   const [selectedRecord, setSelectedRecord] = useState<ActivityRecord | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const cardBg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
-  const headerBg = useColorModeValue('gray.50', 'gray.700');
+  console.log(data);
 
   // Filter data based on search term
   const filteredData = useMemo(() => {
@@ -91,6 +60,7 @@ const MainDataTable: React.FC<MainDataTableProps> = ({ data, labels, hideNames, 
     const endIndex = startIndex + entriesPerPage;
     return sortedData.slice(startIndex, endIndex);
   }, [sortedData, currentPage, entriesPerPage]);
+
 
   const displayData = useMemo(() => {
     const grouped: { [key: string]: ActivityRecord[] } = {};
@@ -234,239 +204,181 @@ const MainDataTable: React.FC<MainDataTableProps> = ({ data, labels, hideNames, 
     }
   };
 
-  const getActionColor = (type: string) => {
-    switch (type) {
-      case 'read': return 'blue';
-      case 'modified': return 'orange';
-      case 'created': return 'green';
-      default: return 'gray';
-    }
-  };
-
   return (
-    <Card bg={cardBg} shadow="sm" borderColor={borderColor}>
-      <CardHeader>
-        <VStack align="stretch" spacing={3}>
-          <Heading size="md" color="gray.700">Activity Records</Heading>
-          
-          <Flex justify="space-between" align="center" wrap="wrap" gap={4}>
-            <HStack spacing={4} wrap="wrap">
-              <HStack>
-                <Text fontSize="sm" color="gray.600">Show</Text>
-                <Select 
-                  size="sm"
-                  w="auto"
-                  value={entriesPerPage}
-                  onChange={(e) => {
-                    setEntriesPerPage(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </Select>
-                <Text fontSize="sm" color="gray.600">entries</Text>
-              </HStack>
-              
-              <InputGroup size="sm" maxW="250px">
-                <InputLeftElement>
-                  <SearchIcon color="gray.400" />
-                </InputLeftElement>
-                <Input
-                  placeholder="Search records..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                />
-              </InputGroup>
-            </HStack>
-            
-            <ButtonGroup size="sm" variant="outline">
-              <Button leftIcon={<DownloadIcon />} onClick={exportToCSV}>CSV</Button>
-              <Button leftIcon={<DownloadIcon />} onClick={exportToExcel}>Excel</Button>
-              <Button leftIcon={<DownloadIcon />} onClick={exportToPDF}>PDF</Button>
-            </ButtonGroup>
-          </Flex>
-          
-          <Text fontSize="sm" color="gray.500">
-            Showing {startEntry} to {endEntry} of {totalRecords} entries
-          </Text>
-        </VStack>
-      </CardHeader>
+    <div className="main-data-table-section">
+      <div className="table-header">
+        <h3>Activity Records</h3>
+      </div>
+      
+      <div className="table-controls">
+        <div className="control-group">
+          <label>Show</label>
+          <select 
+            className="entries-select"
+            value={entriesPerPage}
+            onChange={(e) => {
+              setEntriesPerPage(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span>entries</span>
+        </div>
+        
+        <div className="control-group">
+          <label>Search:</label>
+          <input
+            type="text"
+            className="search-input"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="Search records..."
+          />
+        </div>
+        
+        <div className="export-controls">
+          <button className="btn btn-export" onClick={exportToCSV}>CSV</button>
+          <button className="btn btn-export" onClick={exportToExcel}>Excel</button>
+          <button className="btn btn-export" onClick={exportToPDF}>PDF</button>
+        </div>
+      </div>
 
-      <CardBody pt={0}>
-        <Box overflowX="auto">
-          <Table variant="simple" size="sm">
-            <Thead bg={headerBg}>
-              <Tr>
-                <Th>Date</Th>
-                <Th>Action</Th>
-                <Th>Title</Th>
-                <Th>User</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {displayData.map((item, index) => {
-                if ('isGroupHeader' in item && item.isGroupHeader) {
-                  return (
-                    <Tr key={`group-${item.groupKey}`} bg="gray.100">
-                      <Td colSpan={4} textAlign="center" fontWeight="bold" color="gray.700">
-                        {item.groupKey}
-                      </Td>
-                    </Tr>
-                  );
-                } else {
-                  const record = item as ActivityRecord;
-                  const displayName = hideNames && record.fromId !== currentAuthor._id ? record.fromPseudo : record.from;
-                  return (
-                    <Tr key={`${record.id}-${index}`} _hover={{ bg: 'gray.50' }}>
-                      <Td fontSize="sm">{record.date.toLocaleDateString()}</Td>
-                      <Td>
-                        <Badge 
-                          colorScheme={getActionColor(record.type)} 
-                          variant="subtle"
-                          textTransform="capitalize"
-                        >
-                          {record.type}
-                        </Badge>
-                      </Td>
-                      <Td>
-                        <Tooltip label="Click to view details">
-                          <Link
-                            color="blue.500"
-                            fontWeight="medium"
-                            _hover={{ color: 'blue.600', textDecoration: 'underline' }}
-                            onClick={() => handleRecordClick(record)}
-                            cursor="pointer"
-                          >
-                            {record.title}
-                          </Link>
-                        </Tooltip>
-                      </Td>
-                      <Td fontSize="sm" fontWeight="medium">{displayName}</Td>
-                    </Tr>
-                  );
-                }
-              })}
-            </Tbody>
-          </Table>
-        </Box>
+      <div className="table-info">
+        Showing {startEntry} to {endEntry} of {totalRecords} entries
+      </div>
 
-        {totalPages > 1 && (
-          <Flex justify="center" mt={6}>
-            <ButtonGroup size="sm" variant="outline">
-              <Button 
-                onClick={() => setCurrentPage(currentPage - 1)}
-                isDisabled={currentPage === 1}
-              >
-                Previous
-              </Button>
-              
-              {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => {
-                let page;
-                if (totalPages <= 10) {
-                  page = i + 1;
-                } else if (currentPage <= 5) {
-                  page = i + 1;
-                } else if (currentPage >= totalPages - 4) {
-                  page = totalPages - 9 + i;
-                } else {
-                  page = currentPage - 4 + i;
-                }
-                
+      <div className="table-wrapper">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Action</th>
+              <th>Title</th>
+              <th>User</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayData.map((item, index) => {
+              if ('isGroupHeader' in item && item.isGroupHeader) {
                 return (
-                  <Button 
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    colorScheme={currentPage === page ? "blue" : "gray"}
-                    variant={currentPage === page ? "solid" : "outline"}
-                  >
-                    {page}
-                  </Button>
+                  <tr key={`group-${item.groupKey}`} className="group-header">
+                    <td colSpan={4}>
+                      {item.groupKey}
+                    </td>
+                  </tr>
                 );
-              })}
-              
-              <Button 
-                onClick={() => setCurrentPage(currentPage + 1)}
-                isDisabled={currentPage === totalPages}
-              >
-                Next
-              </Button>
-            </ButtonGroup>
-          </Flex>
-        )}
-      </CardBody>
+              } else {
+                const record = item as ActivityRecord;
+                const displayName = hideNames && record.fromId !== currentAuthor._id ? record.fromPseudo : record.from;
+                return (
+                  <tr key={`${record.id}-${index}`}>
+                    <td>{record.date.toLocaleDateString()}</td>
+                    <td>
+                      <span className={`action-badge action-${record.type}`}>
+                        {record.type}
+                      </span>
+                    </td>
+                    <td>
+                      <a
+                        className="title-link"
+                        href={`${baseURL}/contribution/${record.ID}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {record.title}
+                      </a>
+                    </td>
 
+                    <td>{displayName}</td>
+                  </tr>
+                );
+              }
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {totalPages > 1 && (
+        <div className="pagination-wrapper">
+          <div className="pagination">
+            <button 
+              className={`page-btn ${currentPage === 1 ? 'disabled' : ''}`}
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              ‹ Previous
+            </button>
+            
+            {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => {
+              let page;
+              if (totalPages <= 10) {
+                page = i + 1;
+              } else if (currentPage <= 5) {
+                page = i + 1;
+              } else if (currentPage >= totalPages - 4) {
+                page = totalPages - 9 + i;
+              } else {
+                page = currentPage - 4 + i;
+              }
+              
+              return (
+                <button 
+                  key={page} 
+                  className={`page-btn ${currentPage === page ? 'active' : ''}`}
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </button>
+              );
+            })}
+            
+            <button 
+              className={`page-btn ${currentPage === totalPages ? 'disabled' : ''}`}
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Next ›
+            </button>
+          </div>
+        </div>
+      )}
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         title={selectedRecord?.title || 'Record Details'}
       >
         {selectedRecord && (
-          <VStack spacing={4} align="stretch">
-            <Card variant="outline">
-              <CardBody>
-                <Grid templateColumns="1fr 1fr" gap={4}>
-                  <VStack align="start" spacing={2}>
-                    <Text fontSize="sm" color="gray.600">Date</Text>
-                    <Text fontWeight="medium">{selectedRecord.date.toLocaleDateString()}</Text>
-                  </VStack>
-                  <VStack align="start" spacing={2}>
-                    <Text fontSize="sm" color="gray.600">Action</Text>
-                    <Badge 
-                      colorScheme={getActionColor(selectedRecord.type)} 
-                      variant="subtle"
-                      textTransform="capitalize"
-                    >
-                      {selectedRecord.type}
-                    </Badge>
-                  </VStack>
-                  <VStack align="start" spacing={2}>
-                    <Text fontSize="sm" color="gray.600">Author</Text>
-                    <Text fontWeight="medium">
-                      {hideNames && selectedRecord.fromId !== currentAuthor._id ? selectedRecord.fromPseudo : selectedRecord.from}
-                    </Text>
-                  </VStack>
-                  <VStack align="start" spacing={2}>
-                    <Text fontSize="sm" color="gray.600">View</Text>
-                    <Text fontWeight="medium">{selectedRecord.view}</Text>
-                  </VStack>
-                </Grid>
-              </CardBody>
-            </Card>
-            
-            <Box>
-              <Text fontSize="sm" color="gray.600" mb={2}>Content</Text>
-              <Box 
-                p={4} 
-                bg="gray.50" 
-                borderRadius="md" 
-                border="1px solid" 
-                borderColor="gray.200"
-                dangerouslySetInnerHTML={{ __html: selectedRecord.data.body }}
-              />
-            </Box>
-            
-            <Button
-              as="a"
-              href={`${baseURL}/contribution/${selectedRecord.ID}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              leftIcon={<ExternalLinkIcon />}
-              colorScheme="blue"
-              variant="outline"
-              size="sm"
-            >
-              View Original
-            </Button>
-          </VStack>
+          <div>
+            <div style={{ marginBottom: '20px', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '14px' }}>
+                <div>
+                  <strong>Date:</strong> {selectedRecord.date.toLocaleDateString()}
+                </div>
+                <div>
+                  <strong>Action:</strong> <span className={`action-badge action-${selectedRecord.type}`}>{selectedRecord.type}</span>
+                </div>
+                <div>
+                  <strong>Author:</strong> {hideNames && selectedRecord.fromId !== currentAuthor._id ? selectedRecord.fromPseudo : selectedRecord.from}
+                </div>
+                <div>
+                  <strong>View:</strong> {selectedRecord.view}
+                </div>
+              </div>
+            </div>
+            <div 
+              dangerouslySetInnerHTML={{ __html: selectedRecord.data.body }}
+            />
+          </div>
         )}
       </Modal>
-    </Card>
+    </div>
   );
 };
 

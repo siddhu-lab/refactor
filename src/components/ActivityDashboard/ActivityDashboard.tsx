@@ -1,37 +1,11 @@
 import React, { useContext, useEffect, useState, useRef } from 'react';
-import {
-  Box,
-  Container,
-  Flex,
-  Grid,
-  GridItem,
-  Heading,
-  Text,
-  Button,
-  Select,
-  Badge,
-  Card,
-  CardBody,
-  CardHeader,
-  VStack,
-  HStack,
-  Divider,
-  useColorModeValue,
-  Collapse,
-  IconButton,
-  Tooltip,
-  Alert,
-  AlertIcon,
-  Spinner,
-  Center,
-  useToast
-} from '@chakra-ui/react';
-import { ChevronDownIcon, ChevronUpIcon, InfoIcon, DownloadIcon } from '@chakra-ui/icons';
 import { initializeCharts } from './chartUtils.ts';
 import StatisticsTable from './StatisticsTable.tsx';
 import MainDataTable from './MainDataTable/MainDataTable.tsx';
 import ViewsDropdown from './ViewsDropdown.tsx';
 import * as dc from 'dc';
+import './ActivityDashboard.css';
+import './dc.css';
 import SocialNetworkSection from './SocialNetworkSection/SocialNetworkSection.tsx';
 import dashboardContext from '../../context/dashboard.js';
 
@@ -138,18 +112,14 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
   const [viewDimension, setViewDimension] = useState<any>(null);
   const [rangeFilterActive, setRangeFilterActive] = useState(false);
   const [dateRange, setDateRange] = useState<string>('');
+  const [showTooltip, setShowTooltip] = useState(false);
   const [currentAuthor] = useState({ _id: community.author.id, role: loggedInPersonRole, name: me?.firstName+" "+me?.lastName, pseudoName: me?.pseudoName });
   const [filteredData, setFilteredData] = useState<any[]>([]);
-  const [crossfilterInstance, setCrossfilterInstance] = useState<any>(null);
-  const toast = useToast();
-
   const isManager = loggedInPersonRole === 'manager';
-  const chartsInitialized = useRef(false);
+  const [crossfilterInstance, setCrossfilterInstance] = useState<any>(null);
 
-  // Color scheme
-  const bgColor = useColorModeValue('gray.50', 'gray.900');
-  const cardBg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
+  // Add a ref to track if charts are initialized
+  const chartsInitialized = useRef(false);
 
   // Simulate data loading
   const data = { getSocialInteractions: dummySocialInteractions };
@@ -189,6 +159,7 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
             const allFiltered = ndx.allFiltered();
             setFilteredData(allFiltered);
             
+            // Update statistics data based on filtered data
             const authorDimension = ndx.dimension((d: any) => {
               return hideNames && d.fromId !== currentAuthor?._id ? d.fromPseudo : d.from;
             });
@@ -239,7 +210,7 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
                 const formatDate = (date: Date) => {
                   return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}/${date.getFullYear()}`;
                 };
-                setDateRange(`${formatDate(startDate)} → ${formatDate(endDate)}`);
+                setDateRange(`[${formatDate(startDate)} -> ${formatDate(endDate)}]`);
               }
             } else {
               setDateRange('');
@@ -268,10 +239,12 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
 
       }, 100);
     }
-  }, [data, hideNames, currentAuthor]);
+  }, [data, hideNames, currentAuthor]); // Added missing dependencies
 
+  // Separate useEffect for handling hideNames changes
   useEffect(() => {
     if (chartsInitialized.current && crossfilterInstance) {
+      // Re-render charts when hideNames changes
       const parsed = data.getSocialInteractions.map((d) => {
         const dCopy = { ...d }; 
         const date = new Date(parseInt(dCopy.when));
@@ -294,27 +267,15 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
         setLabels(labelsData);
       }, 100);
     }
-  }, [hideNames, crossfilterInstance, currentAuthor, data.getSocialInteractions]);
+  }, [hideNames, crossfilterInstance, currentAuthor, data.getSocialInteractions]); // Added missing dependencies
 
   const toggleNames = () => {
     if (isManager) {
       setHideNames(!hideNames);
       setSelectedView('');
-      toast({
-        title: hideNames ? "Names revealed" : "Names hidden",
-        description: hideNames ? "Real names are now visible" : "Pseudonyms are now shown",
-        status: "info",
-        duration: 2000,
-        isClosable: true,
-      });
     } else {
-      toast({
-        title: "Access Restricted",
-        description: "Only managers can view other users' names",
-        status: "warning",
-        duration: 3000,
-        isClosable: true,
-      });
+      setShowTooltip(true);
+      setTimeout(() => setShowTooltip(false), 3000);
     }
   };
 
@@ -339,13 +300,6 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
     setSelectedView('');
     setRangeFilterActive(false);
     setDateRange('');
-    toast({
-      title: "Filters Reset",
-      description: "All filters have been cleared",
-      status: "success",
-      duration: 2000,
-      isClosable: true,
-    });
   };
 
   const resetRangeFilter = () => {
@@ -399,196 +353,93 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <Center h="100vh">
-        <VStack spacing={4}>
-          <Spinner size="xl" color="blue.500" thickness="4px" />
-          <Text fontSize="lg" color="gray.600">Loading activity data...</Text>
-        </VStack>
-      </Center>
-    );
-  }
-
-  if (error) {
-    return (
-      <Container maxW="container.lg" py={8}>
-        <Alert status="error" borderRadius="md">
-          <AlertIcon />
-          Error loading activity data. Please try again later.
-        </Alert>
-      </Container>
-    );
-  }
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error loading data</div>;
 
   return (
-    <Box bg={bgColor} minH="100vh">
-      <Container maxW="container.xl" py={6}>
-        <VStack spacing={6} align="stretch">
-          {/* Header */}
-          <Card bg={cardBg} shadow="sm" borderColor={borderColor}>
-            <CardHeader>
-              <Flex justify="space-between" align="center" wrap="wrap" gap={4}>
-                <VStack align="start" spacing={1}>
-                  <Heading size="lg" color="gray.700">
-                    Knowledge Forum Activity Dashboard
-                  </Heading>
-                  <Text color="gray.500" fontSize="sm">
-                    Real-time insights into community engagement and collaboration
-                  </Text>
-                </VStack>
-                
-                <HStack spacing={3} wrap="wrap">
-                  <Badge colorScheme="blue" px={3} py={1} borderRadius="full">
-                    <HStack spacing={2}>
-                      <Text fontSize="xs" fontWeight="medium">Current User:</Text>
-                      <Text fontSize="xs" fontWeight="bold">{currentAuthor.name}</Text>
-                    </HStack>
-                  </Badge>
-                  
-                  <Tooltip 
-                    label={isManager ? `${hideNames ? 'Show' : 'Hide'} real names` : "Only managers can view other users' names"}
-                    hasArrow
-                  >
-                    <Button
-                      size="sm"
-                      colorScheme={isManager ? "blue" : "gray"}
-                      variant={isManager ? "solid" : "outline"}
-                      onClick={toggleNames}
-                      isDisabled={!isManager}
-                      leftIcon={<InfoIcon />}
-                    >
-                      {hideNames ? 'Show' : 'Hide'} Names
-                    </Button>
-                  </Tooltip>
-                </HStack>
-              </Flex>
-            </CardHeader>
-          </Card>
+    <div className="activity-dashboard">
+      <div className="activity-container">
+        <div className="activity-header">
+          <h1>Knowledge Forum Activity Dashboard</h1>
+          <div className="header-controls">
+            <div className="current-user-info">
+              <span className="current-user-label">Current User: </span>
+              <span className="current-user-name">{currentAuthor.name}</span>
+            </div>
+            <div className="button-container">
+              <button 
+                className={`btn ${isManager ? 'btn-primary' : 'btn-disabled'}`}
+                onClick={toggleNames}
+              >
+                {hideNames ? 'Show' : 'Hide'} Names
+              </button>
+              {showTooltip && !isManager && (
+                <div className="tooltip-message">
+                  Only managers can view other users' names
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        <div className="unified-dashboard-box">
+          <div className="dashboard-section">
+            <h3>Types</h3>
+            <div id="type-chart"></div>
+          </div>
+          
+          <div className="dashboard-section">
+            <h3>Views</h3>
+            <ViewsDropdown 
+              views={viewsData}
+              onViewSelect={handleViewSelect}
+              selectedView={selectedView}
+            />
+          </div>
+          
+          <div className="dashboard-section authors-section">
+            <h3>Authors</h3>
+            <div id="author-chart"></div>
+          </div>
+        </div>
 
-          {/* Main Dashboard */}
-          <Card bg={cardBg} shadow="sm" borderColor={borderColor}>
-            <CardBody>
-              <Grid templateColumns={{ base: "1fr", lg: "200px 200px 1fr" }} gap={6} alignItems="start">
-                <GridItem>
-                  <VStack align="stretch" spacing={4}>
-                    <Box>
-                      <Text fontSize="sm" fontWeight="semibold" color="gray.600" mb={3}>
-                        Activity Types
-                      </Text>
-                      <Box id="type-chart" minH="200px" />
-                    </Box>
-                  </VStack>
-                </GridItem>
-                
-                <GridItem>
-                  <VStack align="stretch" spacing={4}>
-                    <Box>
-                      <Text fontSize="sm" fontWeight="semibold" color="gray.600" mb={3}>
-                        Views Filter
-                      </Text>
-                      <ViewsDropdown 
-                        views={viewsData}
-                        onViewSelect={handleViewSelect}
-                        selectedView={selectedView}
-                      />
-                    </Box>
-                  </VStack>
-                </GridItem>
-                
-                <GridItem>
-                  <VStack align="stretch" spacing={4}>
-                    <Box>
-                      <Text fontSize="sm" fontWeight="semibold" color="gray.600" mb={3}>
-                        Authors Activity
-                      </Text>
-                      <Box id="author-chart" minH="250px" />
-                    </Box>
-                  </VStack>
-                </GridItem>
-              </Grid>
-            </CardBody>
-          </Card>
+        <div className="timeline-section">
+          <div className="timeline-header">
+            <h3>Daily Activity Timeline</h3>
+            <button 
+              className="btn btn-secondary"
+              onClick={toggleDailyActivity}
+            >
+              {dailyActivityVisible ? 'Hide' : 'Show'} Timeline
+            </button>
+          </div>
+          
+          <div 
+            className={`timeline-content ${dailyActivityVisible ? 'visible' : 'hidden'}`}
+          >
+            <div className="chart-box">
+              <div className="reset-controls" style={{ display: rangeFilterActive ? 'block' : 'none' }}>
+                range: <span className="filter">{dateRange}</span>
+                <a className="reset-link" style={{cursor:'pointer'}} onClick={resetRangeFilter}>reset</a>
+              </div>
+              <div style={{width:'300px'}} id="line-chart"></div>
+            </div>
 
-          {/* Timeline Section */}
-          <Card bg={cardBg} shadow="sm" borderColor={borderColor}>
-            <CardHeader>
-              <Flex justify="space-between" align="center">
-                <HStack spacing={3}>
-                  <Heading size="md" color="gray.700">Daily Activity Timeline</Heading>
-                  {rangeFilterActive && (
-                    <Badge colorScheme="orange" variant="subtle">
-                      <HStack spacing={2}>
-                        <Text fontSize="xs">Range: {dateRange}</Text>
-                        <Button size="xs" variant="ghost" onClick={resetRangeFilter}>
-                          ×
-                        </Button>
-                      </HStack>
-                    </Badge>
-                  )}
-                </HStack>
-                
-                <IconButton
-                  aria-label={dailyActivityVisible ? 'Hide timeline' : 'Show timeline'}
-                  icon={dailyActivityVisible ? <ChevronUpIcon /> : <ChevronDownIcon />}
-                  size="sm"
-                  variant="ghost"
-                  onClick={toggleDailyActivity}
-                />
-              </Flex>
-            </CardHeader>
-            
-            <Collapse in={dailyActivityVisible}>
-              <CardBody pt={0}>
-                <VStack spacing={4} align="stretch">
-                  <Box bg="gray.50" p={4} borderRadius="md">
-                    <Box id="line-chart" minH="180px" />
-                  </Box>
-                  
-                  <Box bg="gray.50" p={2} borderRadius="md">
-                    <Box id="range-chart" minH="40px" />
-                  </Box>
-                  
-                  <Text fontSize="xs" color="gray.500" textAlign="center" fontStyle="italic">
-                    💡 Drag on the timeline to select a time range for detailed analysis
-                  </Text>
-                </VStack>
-              </CardBody>
-            </Collapse>
-          </Card>
+            <div className="chart-box">
+              <div id="range-chart"></div>
+            </div>
+            <p className="timeline-hint">
+              Pinch to select a time range to zoom in
+            </p>
+          </div>
+        </div>
 
-          {/* Data Count and Reset */}
-          <Card bg="blue.50" borderColor="blue.200" shadow="sm">
-            <CardBody>
-              <Flex justify="space-between" align="center" wrap="wrap" gap={4}>
-                <HStack spacing={4}>
-                  <Text fontSize="sm" color="blue.700">
-                    <Text as="span" fontWeight="bold" className="filter-count"></Text> selected out of{' '}
-                    <Text as="span" fontWeight="bold" className="total-count"></Text> records
-                  </Text>
-                </HStack>
-                
-                <Button
-                  size="sm"
-                  colorScheme="blue"
-                  variant="outline"
-                  onClick={resetFilters}
-                  leftIcon={<DownloadIcon />}
-                >
-                  Reset All Filters
-                </Button>
-              </Flex>
-            </CardBody>
-          </Card>
-
-          {/* Social Network Analysis */}
+        <div className="data-section">
           <SocialNetworkSection 
             data={filteredData} 
             hideNames={hideNames} 
             currentAuthor={currentAuthor} 
           />
-
-          {/* Statistics Table */}
           <StatisticsTable
             data={statisticsData}
             originalData={data?.getSocialInteractions || []}
@@ -601,18 +452,20 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
             isManager={isManager}
             toggleManagers={toggleManagers}
           />
+          <div className="data-count-section">
+            <div className="dc-data-count">
+              <span className="filter-count"></span> selected out of{' '}
+              <span className="total-count"></span> records |{' '}
+              <button type="button" onClick={resetFilters} className="reset-all-link">
+                Reset All
+              </button>
+            </div>
+          </div>
 
-          {/* Main Data Table */}
-          <MainDataTable 
-            data={filteredData} 
-            labels={labels} 
-            hideNames={hideNames} 
-            currentAuthor={currentAuthor} 
-            baseURL={baseURL}
-          />
-        </VStack>
-      </Container>
-    </Box>
+          <MainDataTable data={filteredData} labels={labels} hideNames={hideNames} currentAuthor={currentAuthor} baseURL={baseURL}/>
+        </div>
+      </div>
+    </div>
   );
 };
 

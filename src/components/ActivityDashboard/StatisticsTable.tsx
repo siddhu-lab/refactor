@@ -1,33 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import {
-  Box,
-  Card,
-  CardBody,
-  CardHeader,
-  Table,
-  Thead,
-  Tbody,
-  Tfoot,
-  Tr,
-  Th,
-  Td,
-  Heading,
-  Text,
-  Button,
-  Select,
-  Input,
-  HStack,
-  VStack,
-  Flex,
-  Badge,
-  ButtonGroup,
-  InputGroup,
-  InputLeftElement,
-  useColorModeValue,
-  Tooltip,
-  IconButton
-} from '@chakra-ui/react';
-import { SearchIcon, DownloadIcon, ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
 import { ActivityRecord } from './types';
 
 interface StatisticsData {
@@ -43,7 +14,7 @@ interface StatisticsData {
 interface StatisticsTableProps {
   data: StatisticsData[];
   originalData: ActivityRecord[];
-  members: [];
+  members:[];
   labels: { [key: string]: string };
   hideManagers: boolean;
   hideNames: boolean;
@@ -53,39 +24,25 @@ interface StatisticsTableProps {
   toggleManagers: () => void;
 }
 
-const StatisticsTable: React.FC<StatisticsTableProps> = ({ 
-  data, 
-  originalData = [], 
-  members, 
-  labels, 
-  hideManagers, 
-  hideNames, 
-  selectedView, 
-  currentAuthor, 
-  isManager, 
-  toggleManagers 
-}) => {
+const StatisticsTable: React.FC<StatisticsTableProps> = ({ data, originalData = [], members, labels, hideManagers, hideNames, selectedView, currentAuthor, isManager, toggleManagers }) => {
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-
-  const cardBg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
-  const headerBg = useColorModeValue('gray.50', 'gray.700');
-
   const managerNames = members
-    .filter((author: any) => author.role === 'manager')
-    .flatMap((author: any) => [
-      `${author.firstName} ${author.lastName}`,
-      author.pseudoName
-    ])
-    .filter(Boolean);
+        .filter((author: any) => author.role === 'manager')
+        .flatMap((author: any) => [
+          `${author.firstName} ${author.lastName}`,
+          author.pseudoName
+        ])
+        .filter(Boolean); 
 
   // Filter data based on search term
   const filteredData = useMemo(() => {
     let res = data;
     if (hideManagers) {
-      res = res.filter(d => !managerNames.includes(d.key));
+      res = res.filter(d =>
+        !managerNames.includes(d.key)
+      );
     }
     if (searchTerm) {
       res = res.filter(item => 
@@ -93,7 +50,7 @@ const StatisticsTable: React.FC<StatisticsTableProps> = ({
       );
     }
     return res;
-  }, [data, searchTerm, labels, hideManagers, managerNames]);
+  }, [data, searchTerm, labels, hideManagers]);
 
   // Paginate filtered data
   const paginatedData = useMemo(() => {
@@ -147,7 +104,7 @@ const StatisticsTable: React.FC<StatisticsTableProps> = ({
       created: (allUserTotals.created / userCount).toFixed(2),
       total: (allUserTotals.total / userCount).toFixed(2),
     };
-  }, [originalData, currentAuthor._id, hideNames, hideManagers, managerNames]);
+  }, [originalData, currentAuthor._id, hideNames, hideManagers]);
 
   const viewAverages = useMemo(() => {
     if (!selectedView) return null;
@@ -191,7 +148,8 @@ const StatisticsTable: React.FC<StatisticsTableProps> = ({
       created: (viewUserTotals.created / viewUserCount).toFixed(2),
       total: (viewUserTotals.total / viewUserCount).toFixed(2),
     };
-  }, [originalData, selectedView, currentAuthor._id, hideNames, hideManagers, managerNames]);
+  }, [originalData, selectedView, currentAuthor._id, hideNames, hideManagers]);
+
 
   const totalPages = Math.ceil(filteredData.length / entriesPerPage);
   const startEntry = (currentPage - 1) * entriesPerPage + 1;
@@ -246,19 +204,20 @@ const StatisticsTable: React.FC<StatisticsTableProps> = ({
     document.body.removeChild(link);
   };
 
+  const viewAveragesRow = viewAverages ? `
+  <tr class="totals">
+    <td>${selectedView} Average</td>
+    <td>${viewAverages.read}</td>
+    <td>${viewAverages.modified}</td>
+    <td>${viewAverages.created}</td>
+    <td>${viewAverages.total}</td>
+  </tr>
+` : '';
+
+
   const exportToPDF = () => {
     const printWindow = window.open('', '_blank');
     if (printWindow) {
-      const viewAveragesRow = viewAverages ? `
-        <tr style="background-color: #e3f2fd;">
-          <td style="font-weight: bold;">${selectedView} Average</td>
-          <td>${viewAverages.read}</td>
-          <td>${viewAverages.modified}</td>
-          <td>${viewAverages.created}</td>
-          <td>${viewAverages.total}</td>
-        </tr>
-      ` : '';
-
       printWindow.document.write(`
         <html>
           <head>
@@ -319,187 +278,148 @@ const StatisticsTable: React.FC<StatisticsTableProps> = ({
   };
 
   return (
-    <Card bg={cardBg} shadow="sm" borderColor={borderColor}>
-      <CardHeader>
-        <VStack align="stretch" spacing={3}>
-          <Flex justify="space-between" align="center" wrap="wrap" gap={4}>
-            <VStack align="start" spacing={1}>
-              <Heading size="md" color="gray.700">User Activity Statistics</Heading>
-              {selectedView && (
-                <Badge colorScheme="blue" variant="subtle">
-                  View filter: {selectedView}
-                </Badge>
-              )}
-            </VStack>
-          </Flex>
-          
-          <Flex justify="space-between" align="center" wrap="wrap" gap={4}>
-            <HStack spacing={4} wrap="wrap">
-              <HStack>
-                <Text fontSize="sm" color="gray.600">Show</Text>
-                <Select 
-                  size="sm"
-                  w="auto"
-                  value={entriesPerPage}
-                  onChange={(e) => {
-                    setEntriesPerPage(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </Select>
-                <Text fontSize="sm" color="gray.600">entries</Text>
-              </HStack>
-              
-              <InputGroup size="sm" maxW="200px">
-                <InputLeftElement>
-                  <SearchIcon color="gray.400" />
-                </InputLeftElement>
-                <Input
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                />
-              </InputGroup>
-            </HStack>
-            
-            <HStack spacing={2} wrap="wrap">
-              <Tooltip label={hideManagers ? 'Include managers in results' : 'Exclude managers from results'}>
-                <IconButton
-                  aria-label={hideManagers ? 'Include managers' : 'Exclude managers'}
-                  icon={hideManagers ? <ViewIcon /> : <ViewOffIcon />}
-                  size="sm"
-                  colorScheme={isManager ? "orange" : "gray"}
-                  variant="outline"
-                  onClick={toggleManagers}
-                  isDisabled={!isManager}
-                />
-              </Tooltip>
-              
-              <ButtonGroup size="sm" variant="outline">
-                <Button leftIcon={<DownloadIcon />} onClick={exportToCSV}>CSV</Button>
-                <Button leftIcon={<DownloadIcon />} onClick={exportToExcel}>Excel</Button>
-                <Button leftIcon={<DownloadIcon />} onClick={exportToPDF}>PDF</Button>
-              </ButtonGroup>
-            </HStack>
-          </Flex>
-          
-          <Text fontSize="sm" color="gray.500">
-            Showing {startEntry} to {endEntry} of {filteredData.length} entries
-          </Text>
-        </VStack>
-      </CardHeader>
-
-      <CardBody pt={0}>
-        <Box overflowX="auto">
-          <Table variant="simple" size="sm">
-            <Thead bg={headerBg}>
-              <Tr>
-                <Th>User</Th>
-                <Th isNumeric>Read</Th>
-                <Th isNumeric>Modified</Th>
-                <Th isNumeric>Created</Th>
-                <Th isNumeric>Total</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {paginatedData.map((item, index) => (
-                <Tr key={item.key} _hover={{ bg: 'gray.50' }}>
-                  <Td fontWeight="medium">{labels[item.key]}</Td>
-                  <Td isNumeric>
-                    <Badge colorScheme="blue" variant="subtle">{item.value.read}</Badge>
-                  </Td>
-                  <Td isNumeric>
-                    <Badge colorScheme="orange" variant="subtle">{item.value.modified}</Badge>
-                  </Td>
-                  <Td isNumeric>
-                    <Badge colorScheme="green" variant="subtle">{item.value.created}</Badge>
-                  </Td>
-                  <Td isNumeric>
-                    <Badge colorScheme="purple" variant="subtle">{item.value.total}</Badge>
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-            <Tfoot bg={headerBg}>
-              <Tr fontWeight="bold">
-                <Th>Selected Total</Th>
-                <Th isNumeric>{totals.read}</Th>
-                <Th isNumeric>{totals.modified}</Th>
-                <Th isNumeric>{totals.created}</Th>
-                <Th isNumeric>{totals.total}</Th>
-              </Tr>
-              {viewAverages && (
-                <Tr fontWeight="bold" bg="blue.50">
-                  <Th>{selectedView} View Average</Th>
-                  <Th isNumeric>{viewAverages.read}</Th>
-                  <Th isNumeric>{viewAverages.modified}</Th>
-                  <Th isNumeric>{viewAverages.created}</Th>
-                  <Th isNumeric>{viewAverages.total}</Th>
-                </Tr>
-              )}
-              <Tr fontWeight="bold">
-                <Th>Class Average</Th>
-                <Th isNumeric>{classAverages.read}</Th>
-                <Th isNumeric>{classAverages.modified}</Th>
-                <Th isNumeric>{classAverages.created}</Th>
-                <Th isNumeric>{classAverages.total}</Th>
-              </Tr>
-            </Tfoot>
-          </Table>
-        </Box>
-
-        {totalPages > 1 && (
-          <Flex justify="center" mt={6}>
-            <ButtonGroup size="sm" variant="outline">
-              <Button 
-                onClick={() => setCurrentPage(currentPage - 1)}
-                isDisabled={currentPage === 1}
-              >
-                Previous
-              </Button>
-              
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                let page;
-                if (totalPages <= 5) {
-                  page = i + 1;
-                } else if (currentPage <= 3) {
-                  page = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  page = totalPages - 4 + i;
-                } else {
-                  page = currentPage - 2 + i;
-                }
-                
-                return (
-                  <Button 
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    colorScheme={currentPage === page ? "blue" : "gray"}
-                    variant={currentPage === page ? "solid" : "outline"}
-                  >
-                    {page}
-                  </Button>
-                );
-              })}
-              
-              <Button 
-                onClick={() => setCurrentPage(currentPage + 1)}
-                isDisabled={currentPage === totalPages}
-              >
-                Next
-              </Button>
-            </ButtonGroup>
-          </Flex>
+    <div className="statistics-table-section">
+      <div className="table-header">
+        <h3>User Activity Statistics</h3>
+        {selectedView && (
+          <div style={{ fontSize: '12px', color: '#6c757d', fontStyle: 'italic', marginTop: '0.25rem' }}>
+            View filter active: <strong>{selectedView}</strong>
+          </div>
         )}
-      </CardBody>
-    </Card>
+      </div>
+      
+      <div className="table-controls">
+        <div className="control-group">
+          <label>Show</label>
+          <select 
+            className="entries-select"
+            value={entriesPerPage}
+            onChange={(e) => {
+              setEntriesPerPage(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span>entries</span>
+        </div>
+        
+        <div className="control-group">
+          <label>Search:</label>
+          <input
+            type="text"
+            className="search-input"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="Search users..."
+          />
+        </div>
+        
+        <div className="export-controls">
+          <button 
+                className={`btn ${isManager ? 'btn-export' : 'btn-disabled'}`}
+                onClick={toggleManagers}
+              >
+                {hideManagers ? 'Include' : 'Exclude'} Managers
+          </button>
+          <button className="btn btn-export" onClick={exportToCSV}>CSV</button>
+          <button className="btn btn-export" onClick={exportToExcel}>Excel</button>
+          <button className="btn btn-export" onClick={exportToPDF}>PDF</button>
+        </div>
+      </div>
+
+      <div className="table-info">
+        Showing {startEntry} to {endEntry} of {filteredData.length} entries
+      </div>
+
+      <div className="table-wrapper">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Read</th>
+              <th>Modified</th>
+              <th>Created</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedData.map((item, index) => (
+              <tr key={item.key}>
+                <td>{labels[item.key]}</td>
+                <td>{item.value.read}</td>
+                <td>{item.value.modified}</td>
+                <td>{item.value.created}</td>
+                <td>{item.value.total}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="totals-row">
+              <th>Selected total</th>
+              <th>{totals.read}</th>
+              <th>{totals.modified}</th>
+              <th>{totals.created}</th>
+              <th>{totals.total}</th>
+            </tr>
+            {viewAverages && (
+              <tr className="totals-row" style={{ backgroundColor: '#e3f2fd' }}>
+                <th>{selectedView} View Average</th>
+                <th>{viewAverages.read}</th>
+                <th>{viewAverages.modified}</th>
+                <th>{viewAverages.created}</th>
+                <th>{viewAverages.total}</th>
+              </tr>
+            )}
+            <tr className="totals-row">
+              <th>Class Average</th>
+              <th>{classAverages.read}</th>
+              <th>{classAverages.modified}</th>
+              <th>{classAverages.created}</th>
+              <th>{classAverages.total}</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {totalPages > 1 && (
+        <div className="pagination-wrapper">
+          <div className="pagination">
+            <button 
+              className={`page-btn ${currentPage === 1 ? 'disabled' : ''}`}
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              ‹ Previous
+            </button>
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              <button 
+                key={page} 
+                className={`page-btn ${currentPage === page ? 'active' : ''}`}
+                onClick={() => setCurrentPage(page)}
+              >
+                {page}
+              </button>
+            ))}
+            
+            <button 
+              className={`page-btn ${currentPage === totalPages ? 'disabled' : ''}`}
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Next ›
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
