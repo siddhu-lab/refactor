@@ -38,7 +38,7 @@ const MainDashboard = () => {
   };
 
   return (
-    <div className="dashboard-root" style={{ height: '100vh', overflow: 'hidden' }}>
+    <div className="dashboard-root">
       <div className="header">
         <h1>{community ? community.title : 'Loading Community...'}</h1>
         {role === 'writer' ? (
@@ -57,7 +57,7 @@ const MainDashboard = () => {
         )}
       </div>
       
-      <div className="main" style={{ flex: 1, overflow: 'hidden' }}>
+      <div className="main">
         <div className='sidebar'>
           <div 
             className='main-sidebar' 
@@ -161,7 +161,7 @@ const MainDashboard = () => {
           </div>
         </div>
         
-        <div className="content" style={{ flex: 1, overflow: 'auto', height: '100%' }}>
+        <div className="content">
           {renderContent()}
         </div>
       </div>

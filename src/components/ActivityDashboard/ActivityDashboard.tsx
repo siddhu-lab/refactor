@@ -422,8 +422,8 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = () => {
   }
 
   return (
-    <Box bg={bgColor} h="100%" overflow="auto">
-      <Container maxW="container.xl" py={6} h="100%">
+    <Box bg={bgColor} minH="100vh">
+      <Container maxW="container.xl" py={6}>
         <VStack spacing={6} align="stretch">
           {/* Header */}
           <Card bg={cardBg} shadow="sm" borderColor={borderColor}>
