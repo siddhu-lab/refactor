@@ -162,9 +162,7 @@ const MainDashboard = () => {
         </div>
         
         <div className="content" style={{ flex: 1, overflow: 'auto', height: '100%' }}>
-        <div className="content" style={{ flex: 1, overflow: 'auto', height: 'calc(100vh - 80px)' }}>
           {renderContent()}
-        </div>
         </div>
       </div>
     </div>
